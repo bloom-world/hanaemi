@@ -1,0 +1,32 @@
+{
+  "name": "mobile",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/mobile/lib",
+  "projectType": "application",
+  "tags": [],
+  "// targets": "Flutter（iOS / iPad / Android）。ビルドと配信は Codemagic / Xcode。Nx からは flutter コマンドを呼ぶだけ",
+  "targets": {
+    "analyze": {
+      "executor": "nx:run-commands",
+      "options": { "command": "flutter analyze", "cwd": "apps/mobile" }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": { "command": "flutter test", "cwd": "apps/mobile" }
+    },
+    "build-ios": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "flutter build ipa --flavor {args.flavor} -t lib/main_{args.flavor}.dart",
+        "cwd": "apps/mobile"
+      }
+    },
+    "build-android": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "flutter build appbundle --flavor {args.flavor} -t lib/main_{args.flavor}.dart",
+        "cwd": "apps/mobile"
+      }
+    }
+  }
+}

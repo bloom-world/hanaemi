@@ -1,0 +1,9 @@
+{
+  "name": "rules",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/rules/src",
+  "projectType": "application",
+  "tags": [],
+  "// targets": "ルールのファイルと contract.yml だけを持つ。テストは rules-e2e（emulator 上で実行）",
+  "targets": {}
+}

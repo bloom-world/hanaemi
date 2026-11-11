@@ -1,0 +1,6 @@
+# hanaemi — Firestore 契約（このサービスの document 型の定義）。
+# ルートの contract.yml から import され、`pnpm generate:contracts` で libs/contracts に生成される。
+# Dart（apps/mobile）向けの生成は firebase-contract の dart generator 待ち
+# （https://github.com/cilly-yllic/my-packages/issues/32）。
+
+firestore: {}

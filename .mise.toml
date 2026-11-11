@@ -1,0 +1,8 @@
+[tools]
+# exact 固定（cmonoth と同じ版）。上げるときはこの版を明示的に変えて動作確認してからマージする。
+node = "24.22.1"
+pnpm = "12.8.1"
+# Firebase Emulator（Firestore など）が JRE を要求するため。要件は JDK 11+。
+java = "temurin-21.0.12+8.0.LTS"
+# Flutter は導入時にここへ固定する（Codemagic の Flutter の版と揃える）。
+# flutter = "x.y.z-stable"

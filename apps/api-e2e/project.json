@@ -1,0 +1,16 @@
+{
+  "name": "api-e2e",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "implicitDependencies": ["api"],
+  "targets": {
+    "e2e": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["api:build"],
+      "options": {
+        "command": "firebase emulators:exec -c firebase.e2e.json --only functions --project demo-hanaemi \"FUNCTIONS_BASE_URL=http://127.0.0.1:5011/demo-hanaemi/asia-northeast1 jest -c apps/api-e2e/jest.config.cts --runInBand\"",
+        "cwd": "{workspaceRoot}"
+      }
+    }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "name": "rules-e2e",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "implicitDependencies": ["rules"],
+  "targets": {
+    "e2e": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "firebase emulators:exec -c firebase.e2e.json --only firestore,storage --project demo-hanaemi-rules-e2e \"jest -c apps/rules-e2e/jest.config.cts --runInBand\"",
+        "cwd": "{workspaceRoot}"
+      }
+    }
+  }
+}

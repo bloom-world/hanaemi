@@ -1,0 +1,18 @@
+packages:
+  - libs/*
+  - apps/*
+
+autoInstallPeers: true
+
+# 依存パッケージの install スクリプトは実行しない（cmonoth と同じ方針）
+allowBuilds:
+  '@firebase/util': false
+  '@parcel/watcher': false
+  '@swc/core': false
+  core-js-pure: false
+  esbuild: false
+  less: false
+  nx: false
+  protobufjs: false
+  re2: false
+  unrs-resolver: false

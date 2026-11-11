@@ -1,0 +1,17 @@
+# ルート契約 — hanaemi のデータ定義の単一の正（single source of truth）。
+# `pnpm generate:contracts`（fbc generate contract.yml）で libs/contracts に生成する。
+# Dart（apps/mobile）向けの出力は firebase-contract の dart generator が入ったら追加する
+# （https://github.com/cilly-yllic/my-packages/issues/32）。
+
+generators:
+  - { generator: typescript, out: '#contracts', split: true }
+  - { generator: zod, out: '#contracts', split: true }
+  - { generator: unions, out: '#contracts' }
+  - { generator: firestore, out: '#contracts', split: true }
+
+imports:
+  - ./apps/rules/contract.yml
+
+project:
+  aliases:
+    '#contracts/*': libs/contracts/src/*

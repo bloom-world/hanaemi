@@ -1,0 +1,36 @@
+{
+  "firestore": {
+    "location": "asia-northeast1",
+    "rules": "apps/rules/src/firestore/firestore.rules",
+    "indexes": "apps/rules/src/firestore/firestore.indexes.json"
+  },
+  "storage": {
+    "rules": "apps/rules/src/storage/storage.rules"
+  },
+  "functions": [
+    {
+      "codebase": "api",
+      "source": "dist/apps/api",
+      "runtime": "nodejs24",
+      "predeploy": ["pnpm exec nx run api:build:production"]
+    }
+  ],
+  "hosting": [
+    {
+      "target": "web-admin",
+      "public": "dist/apps/web-admin",
+      "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+      "rewrites": [{ "source": "**", "destination": "/index.html" }],
+      "predeploy": ["pnpm exec nx run web-admin:build"]
+    }
+  ],
+  "emulators": {
+    "auth": { "port": 9099 },
+    "functions": { "port": 5001 },
+    "firestore": { "port": 8080 },
+    "storage": { "port": 9199 },
+    "hosting": { "port": 5000 },
+    "ui": { "enabled": true, "port": 4000 },
+    "singleProjectMode": true
+  }
+}

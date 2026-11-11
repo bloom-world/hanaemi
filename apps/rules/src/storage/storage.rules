@@ -1,0 +1,11 @@
+rules_version = '2';
+
+// hanaemi Storage rules。
+// 既定はすべて拒否。パスごとに許可を足し、apps/rules-e2e にテストを書く。
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

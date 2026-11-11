@@ -1,1 +1,43 @@
+# compiled output
+dist
+tmp
+out-tsc
+
+# dependencies
+node_modules
+
+# IDEs and editors
+/.idea
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+
+# Coverage / Test reports
+coverage/
+test-results/
+*.tsbuildinfo
+
+# System Files
 .DS_Store
+Thumbs.db
+
+# Nx
+.nx/cache
+.nx/workspace-data
+
+# Claude Code
+.claude/settings.local.json
+.claude/worktrees
+
+# Vite
+vite.config.*.timestamp*
+vitest.config.*.timestamp*
+
+# Firebase
+.emulator-data
+firebase-debug.log
+*debug.log
+
+# env
+.env.local
+.env.local.json
