@@ -1,0 +1,978 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>hanaemi 実装ノート</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: 左に固定目次、右に読み物のカラム。体・心・魂の3色をアクセントとして要所だけに使う */
+:root {
+  --bg: #fbf8f9;
+  --surface: #ffffff;
+  --sunk: #f3eef0;
+  --fg: #2a2328;
+  --muted: #6e6369;
+  --line: #e6dde1;
+  --accent: #c2456a;
+  --accent-soft: #fbe3ea;
+  --body: #ec6f8b;
+  --mind: #f29a3a;
+  --spirit: #e6b82a;
+  --warn-bg: #fff3d6;
+  --warn-fg: #7a5600;
+  --font-display: "Zen Maru Gothic", "Hiragino Maru Gothic ProN", "Noto Sans JP", sans-serif;
+  --font-body: "Noto Sans JP", "Hiragino Sans", "Yu Gothic", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --step--1: 0.8125rem;
+  --step-0: 0.9375rem;
+  --step-1: 1.125rem;
+  --step-2: 1.5rem;
+  --step-3: 2.25rem;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1b1619; --surface: #241e22; --sunk: #2d262a; --fg: #f1e9ed; --muted: #b3a6ad;
+    --line: #3b3237; --accent: #f08aa6; --accent-soft: #46262f;
+    --body: #f2879f; --mind: #f5ae5f; --spirit: #ecc84f; --warn-bg: #3a3018; --warn-fg: #f1d48a;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1b1619; --surface: #241e22; --sunk: #2d262a; --fg: #f1e9ed; --muted: #b3a6ad;
+  --line: #3b3237; --accent: #f08aa6; --accent-soft: #46262f;
+  --body: #f2879f; --mind: #f5ae5f; --spirit: #ecc84f; --warn-bg: #3a3018; --warn-fg: #f1d48a;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 24px; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--font-body);
+  font-size: var(--step-0); line-height: 1.8;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+a { color: var(--accent); text-underline-offset: 3px; }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; line-height: 1.35; margin: 0; }
+h2 { font-size: var(--step-2); }
+h3 { font-size: var(--step-1); }
+p { margin: 0; }
+ul, ol { margin: 0; padding-left: 1.3em; }
+li + li { margin-top: 0.25em; }
+code, .mono { font-family: var(--font-mono); font-size: 0.88em; }
+
+.shell { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 48px; max-width: 1180px; margin: 0 auto; padding-block: 40px 96px; }
+nav.toc { position: sticky; top: calc(24px + env(safe-area-inset-top, 0px)); align-self: start; display: grid; gap: 18px; }
+.brand { display: flex; align-items: center; gap: 10px; font-family: var(--font-display); font-weight: 700; font-size: var(--step-1); }
+.toc ol { list-style: none; padding: 0; display: grid; gap: 2px; font-size: var(--step--1); }
+.toc li + li { margin: 0; }
+.toc a { display: block; padding: 6px 10px; border-radius: 8px; color: var(--muted); text-decoration: none; }
+.toc a:hover { background: var(--sunk); color: var(--fg); }
+.toc .src { font-size: var(--step--1); color: var(--muted); line-height: 1.6; }
+
+main { display: grid; gap: 72px; min-width: 0; }
+section { display: grid; gap: 20px; min-width: 0; }
+.prose { max-width: 68ch; display: grid; gap: 12px; }
+.eyebrow { font-family: var(--font-mono); font-size: var(--step--1); letter-spacing: 0.08em; color: var(--accent); text-transform: uppercase; }
+.sec-head { display: grid; gap: 4px; border-bottom: 1px solid var(--line); padding-bottom: 12px; }
+.muted { color: var(--muted); }
+.small { font-size: var(--step--1); }
+
+/* hero */
+.hero { display: grid; gap: 20px; padding-block: 8px 0; }
+.hero h1 { font-size: var(--step-3); letter-spacing: 0.01em; }
+.hero .lede { font-size: var(--step-1); color: var(--muted); max-width: 52ch; line-height: 1.7; }
+.trinity { display: flex; flex-wrap: wrap; gap: 10px; }
+.chip { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px 6px 8px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); font-size: var(--step--1); }
+.dot { width: 14px; height: 14px; border-radius: 50%; flex: none; }
+.dot.b { background: var(--body); } .dot.m { background: var(--mind); } .dot.s { background: var(--spirit); }
+.facts { display: flex; flex-wrap: wrap; gap: 8px 24px; font-size: var(--step--1); color: var(--muted); font-variant-numeric: tabular-nums; }
+.facts b { color: var(--fg); font-weight: 500; }
+
+/* callout */
+.note { background: var(--accent-soft); border-radius: 12px; padding: 16px 18px; display: grid; gap: 8px; max-width: 68ch; }
+.note h3 { font-size: var(--step-0); }
+
+/* tables */
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: var(--step--1); line-height: 1.65; }
+th, td { text-align: left; vertical-align: top; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+th { font-weight: 500; color: var(--muted); background: var(--sunk); white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+td.id { font-family: var(--font-mono); white-space: nowrap; color: var(--muted); }
+
+/* figures */
+.shots { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
+figure { margin: 0; display: grid; gap: 6px; min-width: 0; }
+figure .ph { position: relative; display: block; border-radius: 10px; overflow: hidden; border: 1px solid var(--line); background: var(--sunk); aspect-ratio: 4 / 3; }
+figure .zoom { position: absolute; top: 8px; right: 8px; width: 34px; height: 34px; display: grid; place-items: center; border: 0; border-radius: 8px; background: rgba(20, 12, 16, .62); color: #fff; cursor: pointer; opacity: 0; transition: opacity .15s ease; }
+figure .ph:hover .zoom, figure .zoom:focus-visible { opacity: 1; }
+@media (hover: none) { figure .zoom { opacity: 1; } }
+.lightbox { border: 0; padding: 0; background: transparent; max-width: 96vw; max-height: 94vh; }
+.lightbox::backdrop { background: rgba(10, 6, 8, .82); }
+.lightbox img { display: block; max-width: 96vw; max-height: 88vh; width: auto; height: auto; border-radius: 8px; background: #fff; }
+.lightbox p { margin: 8px 0 0; color: #f1e9ed; font-size: var(--step--1); text-align: center; }
+.lightbox .close { position: fixed; top: 14px; right: 16px; width: 40px; height: 40px; border: 0; border-radius: 999px; background: rgba(255,255,255,.14); color: #fff; font-size: 22px; line-height: 1; cursor: pointer; }
+figure img { width: 100%; height: 100%; object-fit: cover; object-position: top center; display: block; transition: transform .25s ease; }
+figure .ph:hover img { transform: scale(1.03); }
+@media (prefers-reduced-motion: reduce) { figure img { transition: none; } }
+figcaption { font-size: var(--step--1); color: var(--muted); }
+figure.wide .ph { aspect-ratio: auto; }
+figure.wide img { height: auto; object-fit: contain; }
+
+.diagram { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+.diagram pre.mermaid { margin: 0; min-width: 560px; background: transparent; }
+
+/* feature cards */
+.features { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+.feature { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+.feature .fid { font-family: var(--font-mono); font-size: var(--step--1); color: var(--muted); }
+.feature ul { font-size: var(--step--1); line-height: 1.7; }
+.tag { display: inline-block; font-size: 0.72rem; padding: 1px 8px; border-radius: 999px; background: var(--warn-bg); color: var(--warn-fg); font-weight: 500; vertical-align: 1px; white-space: nowrap; }
+
+/* trainers */
+.trainers { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; }
+.trainer { border-radius: 12px; padding: 16px 18px; background: var(--surface); border: 1px solid var(--line); display: grid; gap: 6px; align-content: start; }
+.trainer h3 { display: flex; align-items: center; gap: 8px; }
+.swatch { width: 12px; height: 12px; border-radius: 3px; border: 1px solid var(--line); flex: none; }
+
+/* phone mock of the home screen */
+.home-demo { display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 1fr); gap: 32px; align-items: start; }
+.phone { background: var(--surface); border: 1px solid var(--line); border-radius: 28px; padding: 16px; display: grid; gap: 12px; box-shadow: 0 8px 28px -18px rgba(80, 30, 50, .35); }
+.phone .hello { font-size: var(--step--1); color: var(--muted); }
+.phone .card { background: var(--sunk); border-radius: 14px; padding: 12px 14px; display: grid; gap: 8px; }
+.phone .card h4 { margin: 0; font-family: var(--font-display); font-size: 0.95rem; }
+.vitals { display: flex; gap: 8px; font-variant-numeric: tabular-nums; }
+.vitals div { flex: 1; background: var(--surface); border-radius: 8px; padding: 6px 8px; font-size: var(--step--1); }
+.vitals b { display: block; font-size: 1.05rem; }
+.rings { display: flex; justify-content: space-between; gap: 6px; }
+.ring { display: grid; justify-items: center; gap: 2px; font-size: 0.72rem; color: var(--muted); }
+.ring svg { width: 64px; height: 64px; }
+.ring text { font-family: var(--font-body); font-size: 15px; fill: var(--fg); font-variant-numeric: tabular-nums; }
+.tabs { display: grid; grid-template-columns: repeat(4, 1fr); text-align: center; font-size: 0.68rem; color: var(--muted); border-top: 1px solid var(--line); padding-top: 8px; }
+.tabs span:first-child { color: var(--accent); font-weight: 500; }
+
+/* questions */
+.qgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+.qcol { border-radius: 12px; overflow: hidden; border: 1px solid var(--line); background: var(--surface); }
+.qcol header { padding: 10px 16px; font-family: var(--font-display); font-weight: 700; color: #fff; }
+.qcol.b header { background: var(--body); } .qcol.m header { background: var(--mind); } .qcol.s header { background: var(--spirit); color: #3b2c00; }
+.qcol ol { padding: 12px 16px 14px 2.2em; font-size: var(--step--1); line-height: 1.7; }
+
+.issues { display: grid; gap: 10px; }
+details { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; }
+details[open] { padding-bottom: 16px; }
+summary { cursor: pointer; font-weight: 500; }
+details > div { margin-top: 10px; font-size: var(--step--1); display: grid; gap: 6px; }
+
+.two { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+
+@media (max-width: 860px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 24px; padding-block: 24px 64px; }
+  nav.toc { position: static; }
+  .toc ol { display: flex; flex-wrap: wrap; gap: 4px; }
+  .toc a { padding: 4px 10px; background: var(--sunk); }
+  .home-demo { grid-template-columns: minmax(0, 1fr); }
+  .phone { max-width: 320px; }
+  .hero h1 { font-size: 1.85rem; }
+}
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <nav class="toc" aria-label="目次">
+    <div class="brand">
+      <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true">
+        <g transform="translate(14 14)">
+          <ellipse rx="4" ry="11" fill="var(--body)" opacity=".85"/>
+          <ellipse rx="4" ry="11" fill="var(--mind)" opacity=".85" transform="rotate(60)"/>
+          <ellipse rx="4" ry="11" fill="var(--spirit)" opacity=".85" transform="rotate(120)"/>
+          <circle r="3" fill="var(--surface)"/>
+        </g>
+      </svg>
+      hanaemi
+    </div>
+    <ol>
+      <li><a href="#overview">サービス概要</a></li>
+      <li><a href="#flow">画面遷移</a></li>
+      <li><a href="#screens">画面一覧</a></li>
+      <li><a href="#features">機能仕様</a></li>
+      <li><a href="#data">データモデル</a></li>
+      <li><a href="#contents">コンテンツと配色</a></li>
+      <li><a href="#issues">未決事項</a></li>
+      <li><a href="#meetings">MTGメモ</a></li>
+      <li><a href="#tech">技術選定</a></li>
+    </ol>
+    <p class="src">出典: Miro「hanaemi UI mock-up」<br>2026-11-10 取得 / 閲覧のみ権限</p>
+  </nav>
+
+  <main>
+    <header class="hero">
+      <span class="eyebrow">Implementation notes</span>
+      <h1>はなゑみ 実装ノート</h1>
+      <p class="lede">Miro ボードに散らばっている企画、ワイヤー、カンプ、議事メモを、実装に必要な単位で整理したもの。体・心・魂の状態を可視化し、トレーナーと一緒にセルフワークを続けるウェルビーイングアプリ。</p>
+      <div class="trinity">
+        <span class="chip"><span class="dot b"></span>Body 体</span>
+        <span class="chip"><span class="dot m"></span>Mind 心</span>
+        <span class="chip"><span class="dot s"></span>Spirit 魂</span>
+      </div>
+      <div class="facts">
+        <span>ボード要素 <b>1,319</b></span>
+        <span>フレーム <b>88</b></span>
+        <span>洗い出した画面 <b>45</b></span>
+        <span>未決事項 <b>25</b></span>
+      </div>
+      <div class="note">
+        <h3>ボードの読み方</h3>
+        <p class="small">新旧の案が混在している。実装の正は<strong>「UI画面整理（開発向け）」フレーム</strong>とし、それ以外の初期ワイヤー、マインドマップ、左下の大きなカンプ群は経緯と参考として扱う。</p>
+      </div>
+      <figure class="wide">
+        <div class="ph"><img src="images/10_dev-ui-overview.jpg" alt="UI画面整理（開発向け）フレームの全体" loading="lazy"><button type="button" class="zoom" aria-label="拡大して表示"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M11 8v6M8 11h6"/></svg></button></div>
+        <figcaption>UI画面整理（開発向け）の全体。上段がフロー、中段がフローとカンプの対応、右下がアカウント設定</figcaption>
+      </figure>
+    </header>
+
+    <!-- ========== 概要 ========== -->
+    <section id="overview">
+      <div class="sec-head"><span class="eyebrow">01</span><h2>サービス概要</h2></div>
+      <div class="prose">
+        <p><strong>昨日より今日、上を向いて歩けるように。</strong>日常の「自分磨き」を楽しくサポートし、「今幸せな人」「いきいきと生きる人」を増やす。企画初期の仮称は「ココロバランスサービス(仮)」。</p>
+        <p>どんなに関心があっても「めんどくさい」と感じると続かない。このアプリは<strong>継続性の課題</strong>を解決することを重視し、キーワードに「ラク・実感・楽しい・ごほうび」を掲げている。</p>
+      </div>
+      <div class="two">
+        <div class="feature">
+          <h3>3つの柱</h3>
+          <ul>
+            <li><b>NAVIGATION</b>: 個性を持つ AI コーディネーター（トレーナー）が、朝・ブレイクタイム・夜にプログラムを提案</li>
+            <li><b>ACTIVITY</b>: スキマ時間とスマホで始められる活動（瞑想、ヨガ、日記など）</li>
+            <li><b>INFORMATION</b>: 自分の状態の可視化と記録</li>
+          </ul>
+        </div>
+        <div class="feature">
+          <h3>ターゲット</h3>
+          <ul>
+            <li>30〜40代の女性。子どもの手が離れつつあり、平日に自分の時間を取りやすい</li>
+            <li>ペルソナ: 39歳の専業主婦、横浜市在住、4人家族。モーニングルーティーンやヨガに興味はあるが踏み出せていない</li>
+            <li>数値で分かると楽しい。日本市場では「不安をゼロにする」価値が刺さる</li>
+          </ul>
+        </div>
+      </div>
+      <h3>ユーザーインタビューの要点（3名、匿名化）</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th></th><th>ユーザーA</th><th>ユーザーB</th><th>ユーザーC</th></tr></thead>
+          <tbody>
+            <tr><th>属性</th><td>40代、会社員</td><td>40代、既婚・子あり、フリーランス</td><td>30代、既婚・子あり、経営者</td></tr>
+            <tr><th>自分の時間</th><td>△ 週末</td><td>◎ 平日の朝〜15時</td><td>× 朝4〜6時のみ</td></tr>
+            <tr><th>傾向</th><td>ストイック、失敗を恐れる。強めのコーチングは苦手</td><td>マイペースでゆるく続けたい。手帳派。天気予報が1日の最初のタッチポイント</td><td>ルーティーン重視、頑張りすぎない。誰が言っているかを重視</td></tr>
+            <tr><th>示唆</th><td>記録と可視化が大事。手軽さ</td><td>ジャーナリングに関心。自分に近い人の活動を見たい</td><td>ロールモデルを真似するスタイルが合う</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="shots">
+        <figure><div class="ph"><img src="images/43_slide-service-overview.jpg" alt="サービス概要スライド" loading="lazy"><button type="button" class="zoom" aria-label="拡大して表示"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M11 8v6M8 11h6"/></svg></button></div><figcaption>サービス概要スライド</figcaption></figure>
+        <figure><div class="ph"><img src="images/44_slide-main-feature.jpg" alt="メイン機能スライド" loading="lazy"><button type="button" class="zoom" aria-label="拡大して表示"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M11 8v6M8 11h6"/></svg></button></div><figcaption>メイン機能「ユーザーサポート」</figcaption></figure>
+        <figure><div class="ph"><img src="images/45_slide-values.jpg" alt="重視することスライド" loading="lazy"><button type="button" class="zoom" aria-label="拡大して表示"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M11 8v6M8 11h6"/></svg></button></div><figcaption>ラク・実感・楽しい・ごほうび</figcaption></figure>
+        <figure><div class="ph"><img src="images/42_slide-persona.jpg" alt="ペルソナスライド" loading="lazy"><button type="button" class="zoom" aria-label="拡大して表示"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M11 8v6M8 11h6"/></svg></button></div><figcaption>ペルソナ</figcaption></figure>
+      </div>
+    </section>
+
+    <!-- ========== 画面遷移 ========== -->
+    <section id="flow">
+      <div class="sec-head"><span class="eyebrow">02</span><h2>画面遷移</h2></div>
+      <p class="prose muted small">開発向けフレームのコネクタ（矢印）から起こした遷移図。図が横にはみ出す場合はスクロールできる。</p>
+      <div class="diagram">
+<pre class="mermaid">
+flowchart TD
+    Start([アプリ起動&lt;br/&gt;オープニングサウンド]) --> Entry[ログイン / 新規登録]
+    Entry --> Login[ログイン&lt;br/&gt;ID・パスワード / SNS連携]
+    Login --> Today
+    Entry --> Signup[新規登録&lt;br/&gt;メール・パスワード / Google・Apple]
+    Signup --> B1[基本情報1 姓名]
+    B1 --> B2[基本情報2 性別・年代・エリア・職種]
+    B2 --> B3[基本情報3 起床・オフ・就寝時間]
+    B3 --> Pre[仮登録完了&lt;br/&gt;認証メール送信]
+    Pre --> Ver[本登録完了&lt;br/&gt;スタート]
+    Ver --> Tr[トレーナー選択&lt;br/&gt;4人から選ぶ]
+    Tr --> TI[トリニティ設問説明]
+    TI --> Q1[設問 体]
+    Q1 --> Q2[設問 心]
+    Q2 --> Q3[設問 精神]
+    Q3 --> TR[判定中 → 結果表示]
+    TR --> Today[今日の状態&lt;br/&gt;晴れ・曇り・雨・雷]
+    Today --> Home{{ホーム}}
+    Home --> Vit[体重・体温入力]
+    Home --> Re[トリニティ再診断] --> TI
+    Home --> Rec[おすすめセルフワーク]
+    Home -->|タブ| SW[セルフワーク一覧]
+    Home -->|タブ| G[グラフ]
+    Home -->|タブ| Acc[アカウント設定]
+    Rec --> CS
+    SW --> CS[コース設定&lt;br/&gt;3分・5分・10分]
+    CS --> Gd[トレーナーのスタートガイド]
+    Gd --> Pl[再生 音声 / 動画]
+    Pl --> Rt[評価 5つ星]
+    Rt --> Bd[達成・バッジ]
+    Bd --> Rp[レポート]
+    Rp --> Wk[週の記録]
+    Wk -->|もっと探索する| SW
+    Pl -->|左上の×| Qd[中断確認&lt;br/&gt;別のコーチ・プログラムを提案]
+</pre>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>ボトムタブ</th><th>遷移先</th><th>備考</th></tr></thead>
+          <tbody>
+            <tr><td>ホーム</td><td>ホーム画面</td><td></td></tr>
+            <tr><td>ダッシュボード</td><td>グラフ画面</td><td>フロー図では「グラフ」と表記。名称は要統一</td></tr>
+            <tr><td>セルフワーク</td><td>セルフワーク一覧</td><td></td></tr>
+            <tr><td>アカウント</td><td>設定トップ</td><td>アカウント情報、アラーム、通知、キャラクター、お知らせ、規約、ログアウト</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="shots">
+        <figure><div class="ph"><img src="images/11_dev-flow-onboarding.jpg" alt="オンボーディングのフロー" loading="lazy"><button type="button" class="zoom" aria-label="拡大して表示"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M11 8v6M8 11h6"/></svg></button></div><figcaption>登録からトリニティ設問までのフロー</figcaption></figure>
+        <figure><div class="ph"><img src="images/12_dev-flow-home-selfwork.jpg" alt="ホームとセルフワークのフロー" loading="lazy"><button type="button" class="zoom" aria-label="拡大して表示"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M11 8v6M8 11h6"/></svg></button></div><figcaption>ホームとセルフワークのフロー</figcaption></figure>
+        <figure><div class="ph"><img src="images/02_sitemap-mindmap-overview.jpg" alt="初期のサイトマップ" loading="lazy"><button type="button" class="zoom" aria-label="拡大して表示"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M11 8v6M8 11h6"/></svg></button></div><figcaption>初期のサイトマップ（マインドマップ）</figcaption></figure>
+        <figure><div class="ph"><img src="images/01_screen-flow-early.jpg" alt="初期の画面遷移フロー" loading="lazy"><button type="button" class="zoom" aria-label="拡大して表示"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M11 8v6M8 11h6"/></svg></button></div><figcaption>初期の画面遷移フロー</figcaption></figure>
+      </div>
+    </section>
+
+    <!-- ========== 画面一覧 ========== -->
+    <section id="screens">
+      <div class="sec-head"><span class="eyebrow">03</span><h2>画面一覧</h2></div>
+      <p class="prose muted small">画面 ID はこのノートで便宜的に振ったもの。項目と文言はカンプとワイヤーから書き起こした。</p>
+
+      <h3>ホーム画面の構成</h3>
+      <div class="home-demo">
+        <div class="phone" aria-label="ホーム画面の構成を再現した図">
+          <div class="hello">こんにちは　〇〇さん</div>
+          <div class="card">
+            <h4>Today's condition ☀️</h4>
+            <div class="small muted">今日の状態：良好</div>
+            <div class="vitals"><div>体重<b>45kg</b></div><div>体温<b>36.5℃</b></div></div>
+          </div>
+          <div class="card">
+            <h4>Trinity Balance</h4>
+            <div class="rings">
+              <div class="ring"><svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="26" fill="none" stroke="var(--line)" stroke-width="6"/><circle cx="32" cy="32" r="26" fill="none" stroke="var(--body)" stroke-width="6" stroke-linecap="round" stroke-dasharray="81.7 163.4" transform="rotate(-90 32 32)"/><text x="32" y="37" text-anchor="middle">50%</text></svg>Body 体</div>
+              <div class="ring"><svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="26" fill="none" stroke="var(--line)" stroke-width="6"/><circle cx="32" cy="32" r="26" fill="none" stroke="var(--mind)" stroke-width="6" stroke-linecap="round" stroke-dasharray="147 163.4" transform="rotate(-90 32 32)"/><text x="32" y="37" text-anchor="middle">90%</text></svg>Mind 心</div>
+              <div class="ring"><svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="26" fill="none" stroke="var(--line)" stroke-width="6"/><circle cx="32" cy="32" r="26" fill="none" stroke="var(--spirit)" stroke-width="6" stroke-linecap="round" stroke-dasharray="49 163.4" transform="rotate(-90 32 32)"/><text x="32" y="37" text-anchor="middle">30%</text></svg>Spirit 魂</div>
+            </div>
+            <div class="small muted" style="text-align:center">再診断する</div>
+          </div>
+          <div class="card">
+            <h4>おすすめのセルフワーク</h4>
+            <div class="small">「瞑想」「ジャーナリング」</div>
+          </div>
+          <div class="tabs"><span>ホーム</span><span>ダッシュボード</span><span>セルフワーク</span><span>アカウント</span></div>
+        </div>
+        <div class="prose small">
+          <p><b>Today's condition</b>: その日の天気アイコンとラベル、最新の体重と体温。</p>
+          <p><b>Trinity Balance</b>: 体・心・魂の3つの円グラフ（％）と、各項目の天気アイコン。「再診断する」ボタン。右上の × で非表示にできる。</p>
+          <p><b>おすすめのセルフワーク</b>: トリニティの状態に連動した提案。選んだトレーナーのイラストを添える。</p>
+          <p class="muted">過去案の補足: 今日の状態・体重・体温・生理周期の4項目は表示・非表示を切り替えられる。曇りが何日も続くとアラートを出す。</p>
+          <figure><div class="ph"><img src="images/20_design-today-condition-home.jpg" alt="今日の状態とホームのカンプ" loading="lazy"><button type="button" class="zoom" aria-label="拡大して表示"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M11 8v6M8 11h6"/></svg></button></div><figcaption>カンプ: 今日の状態設問（左）とホーム（右）</figcaption></figure>
+        </div>
+      </div>
+
+      <h3>全画面</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>ID</th><th>画面</th><th>主な要素</th></tr></thead>
+          <tbody>
+            <tr><td class="id">A-01</td><td>スプラッシュ</td><td>オープニングサウンド。花が広がるアニメーション（案）</td></tr>
+            <tr><td class="id">A-02</td><td>スタートガイド</td><td>最大5枚。イラストは外部に依頼</td></tr>
+            <tr><td class="id">A-03</td><td>ログイン / 新規登録</td><td>ロゴ、規約同意チェック、「新規登録する」「ログインする」</td></tr>
+            <tr><td class="id">A-04</td><td>ログイン</td><td>ID・パスワード、Google / Apple。ログイン済みならスキップ</td></tr>
+            <tr><td class="id">A-05</td><td>新規登録</td><td>メールアドレス、パスワード（英数8文字以上）、確認用</td></tr>
+            <tr><td class="id">A-06</td><td>基本情報 1/3</td><td>姓・名（漢字・ひらがな・カタカナのみ）</td></tr>
+            <tr><td class="id">A-07</td><td>基本情報 2/3</td><td>性別（男性 / 女性 / 無回答）、年代、エリア、職種、婚姻状態</td></tr>
+            <tr><td class="id">A-08</td><td>基本情報 3/3</td><td>起床・オフ・就寝時間。各時間にアラームを設定するチェック</td></tr>
+            <tr><td class="id">A-09</td><td>仮登録完了</td><td>「hanaemi本登録のご案内」メールで本登録するよう案内</td></tr>
+            <tr><td class="id">A-10</td><td>本登録完了</td><td>「はなゑみ ウェルビーイングの世界へようこそ」、スタート</td></tr>
+            <tr><td class="id">O-01〜02</td><td>トレーナー選択・詳細</td><td>4人のカルーセル、プロフィール、ボイス、「このトレーナーにする」</td></tr>
+            <tr><td class="id">O-03〜04</td><td>設問説明</td><td>「今のあなたを知りましょう」。1〜5の回答方法の説明</td></tr>
+            <tr><td class="id">O-05</td><td>設問 体</td><td>5問、1〜5の5段階（悪い〜良い）</td></tr>
+            <tr><td class="id">O-06</td><td>心・精神の選択</td><td>Mind / Spirit に進むか「ホーム画面へ」</td></tr>
+            <tr><td class="id">O-07〜08</td><td>設問 心・精神</td><td>各4〜5問</td></tr>
+            <tr><td class="id">O-09〜10</td><td>判定中・結果</td><td>Loading、「あなたの今の状態は〇〇ですね」</td></tr>
+            <tr><td class="id">O-11</td><td>つなぎ</td><td>「次に、あなたの今日の気分を教えてください」</td></tr>
+            <tr><td class="id">D-01</td><td>今日の状態</td><td>晴れ・曇り・雨・雷の2×2選択、「測定へ」。1日1回</td></tr>
+            <tr><td class="id">H-01</td><td>ホーム</td><td>上の図のとおり</td></tr>
+            <tr><td class="id">H-02</td><td>体重・体温入力</td><td>日時、体重(kg)、体温(℃)、テンキー、保存。1日に複数回可</td></tr>
+            <tr><td class="id">G-01</td><td>グラフ</td><td>All / Weight / Body temperature / Selfwork、Day〜Year、平均値、単位設定</td></tr>
+            <tr><td class="id">S-01</td><td>セルフワーク一覧</td><td>瞑想、ジャーナリング、ワークアウト、断捨離、ヨガ、モーニングダイアリー</td></tr>
+            <tr><td class="id">S-02</td><td>コース設定</td><td>バランス（効く領域）、タイム（3/5/10分）、ボイス（瞑想）、スタート</td></tr>
+            <tr><td class="id">S-03〜04</td><td>スタートガイド</td><td>「目を閉じて！準備はいい？」→「さあ、はじめるよ！よーい、スタート！」</td></tr>
+            <tr><td class="id">S-05</td><td>再生</td><td>瞑想は音声、ヨガ・ワークアウトは動画。全画面ボタン</td></tr>
+            <tr><td class="id">S-06</td><td>中断確認</td><td>「終了する前に〜に変えますか」はい / いいえ</td></tr>
+            <tr><td class="id">S-07</td><td>評価</td><td>5つ星（非常に良い！/ 良い！/ 普通）、スキップ</td></tr>
+            <tr><td class="id">S-08</td><td>達成・バッジ</td><td>「ご達成おめでとうございます！」シングルスターなど</td></tr>
+            <tr><td class="id">S-09</td><td>レポート</td><td>トレーニング時間、継続日数、トリニティのビフォー / アフター</td></tr>
+            <tr><td class="id">S-10</td><td>週の記録</td><td>「今日もナイスジョブ！」月〜日のチェック、「もっと探索する」</td></tr>
+            <tr><td class="id">U-01</td><td>設定トップ</td><td>アカウント情報 / アラーム / アプリ内通知 / キャラクター / お知らせ一覧 / 利用規約 / プライバシーポリシー / ログアウト</td></tr>
+            <tr><td class="id">U-02〜03</td><td>アカウント情報</td><td>登録時と同じ項目を編集、確定 / キャンセル、完了画面</td></tr>
+            <tr><td class="id">U-04〜06</td><td>パスワード再設定</td><td>旧・新・確認 → 確認画面 → 完了</td></tr>
+            <tr><td class="id">U-07</td><td>アラーム</td><td>起床・オフ・就寝のトグル、任意時刻の追加</td></tr>
+            <tr><td class="id">U-08〜09</td><td>退会</td><td>「すべてのデータが消去されます」→ 退会完了</td></tr>
+            <tr><td class="id">U-10</td><td>未作成</td><td>アプリ内通知、お知らせ一覧、利用規約、プライバシーポリシー、問い合わせ</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="shots">
+        <figure><div class="ph"><img src="images/13_dev-designs-registration.jpg" alt="登録まわりのカンプ" loading="lazy"><button type="button" class="zoom" aria-label="拡大して表示"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M11 8v6M8 11h6"/></svg></button></div><figcaption>登録まわりのワイヤー</figcaption></figure>
+        <figure><div class="ph"><img src="images/23_design-trainer-select.jpg" alt="トレーナー選択" loading="lazy"><button type="button" class="zoom" aria-label="拡大して表示"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M11 8v6M8 11h6"/></svg></button></div><figcaption>トレーナー選択</figcaption></figure>
+        <figure><div class="ph"><img src="images/21_design-trinity-body.jpg" alt="体の設問" loading="lazy"><button type="button" class="zoom" aria-label="拡大して表示"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M11 8v6M8 11h6"/></svg></button></div><figcaption>トリニティ設問（体）</figcaption></figure>
+        <figure><div class="ph"><img src="images/22_design-trinity-mind-spirit.jpg" alt="心と精神の設問" loading="lazy"><button type="button" class="zoom" aria-label="拡大して表示"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M11 8v6M8 11h6"/></svg></button></div><figcaption>トリニティ設問（心・精神）</figcaption></figure>
+        <figure><div class="ph"><img src="images/27_design-graph.jpg" alt="グラフ" loading="lazy"><button type="button" class="zoom" aria-label="拡大して表示"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M11 8v6M8 11h6"/></svg></button></div><figcaption>グラフ</figcaption></figure>
+        <figure><div class="ph"><img src="images/24_design-selfwork-list-meditation.jpg" alt="セルフワーク一覧とコース設定" loading="lazy"><button type="button" class="zoom" aria-label="拡大して表示"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M11 8v6M8 11h6"/></svg></button></div><figcaption>セルフワーク一覧とコース設定</figcaption></figure>
+        <figure><div class="ph"><img src="images/25_design-selfwork-rating-report.jpg" alt="評価・レポート・週の記録" loading="lazy"><button type="button" class="zoom" aria-label="拡大して表示"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M11 8v6M8 11h6"/></svg></button></div><figcaption>評価・レポート・週の記録</figcaption></figure>
+        <figure><div class="ph"><img src="images/16_dev-account-settings.jpg" alt="アカウント設定" loading="lazy"><button type="button" class="zoom" aria-label="拡大して表示"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M11 8v6M8 11h6"/></svg></button></div><figcaption>アカウント設定</figcaption></figure>
+      </div>
+    </section>
+
+    <!-- ========== 機能仕様 ========== -->
+    <section id="features">
+      <div class="sec-head"><span class="eyebrow">04</span><h2>機能仕様</h2></div>
+      <p class="muted small" style="max-width:68ch"><span class="tag">案</span> は議論段階で、確定していないもの。</p>
+
+      <h3>トリニティ設問（カンプの設問文）</h3>
+      <div class="qgrid">
+        <div class="qcol b"><header>Body 体</header><ol><li>よく眠れない</li><li>体の調子が悪い</li><li>仕事中、強い眠気に襲われる</li><li>朝、起きた時、ぐったりした疲れを感じる</li><li>以前とくらべて、疲れやすい</li></ol></div>
+        <div class="qcol m"><header>Mind 心</header><ol><li>自分のすることと他者がすることをあまり比較しない</li><li>自分に何ができて何ができないかは外部の制約のせいではない</li><li>不安を感じる</li><li>落ち着かない、物事に集中できない</li></ol></div>
+        <div class="qcol s"><header>Spirit 魂</header><ol><li>自分のすることと他者がすることをあまり比較しない</li><li>自分に何ができて何ができないかは外部の制約のせいではない</li><li>自分自身についての信念はあまり変化しない</li><li>不安を感じる</li></ol></div>
+      </div>
+      <p class="small muted">回答は 1: 全くそう思わない 〜 5: とてもそう思う。心と精神で設問が重複しており、仮の文言と思われる。</p>
+
+      <div class="features">
+        <div class="feature">
+          <span class="fid">F-01</span><h3>認証・アカウント</h3>
+          <ul>
+            <li>メール・パスワード、または Google / Apple 連携</li>
+            <li>仮登録後に認証メール、リンクで本登録</li>
+            <li>利用規約・プライバシーポリシーへの同意必須</li>
+            <li>付箋: メール認証は実装が大変、Google / Apple 連携がラク</li>
+            <li>退会時はすべてのデータを削除</li>
+          </ul>
+        </div>
+        <div class="feature">
+          <span class="fid">F-02</span><h3>トレーナー</h3>
+          <ul>
+            <li>4人から1人を選ぶ。設定から変更可</li>
+            <li>声優ボイスでガイド、応援、アラーム</li>
+            <li>ナビキャラは OFF にもできる</li>
+            <li><span class="tag">案</span> 最初は2人から選び、残りは早起き回数で解放</li>
+            <li>セルフワーク画面をキャラの色に合わせる</li>
+          </ul>
+        </div>
+        <div class="feature">
+          <span class="fid">F-03</span><h3>トリニティ診断</h3>
+          <ul>
+            <li>体 → 心 → 精神の順に 1〜5 で回答し、各領域を％で表示</li>
+            <li>何度でも再診断でき、再診断で円グラフをリセット</li>
+            <li>心だけ再診断したい場合も体から始める</li>
+            <li>セルフワークを続けると％が改善する</li>
+            <li>おすすめセルフワークと連動</li>
+            <li>算出ロジックは未定義</li>
+          </ul>
+        </div>
+        <div class="feature">
+          <span class="fid">F-04</span><h3>今日の状態</h3>
+          <ul>
+            <li>晴れ / 曇り / 雨 / 雷 の4択、1日1回</li>
+            <li>日付が変わって最初の起動時にポップアップ</li>
+            <li>トリニティとは別データで管理</li>
+            <li>カレンダーで可視化、曇りが続くとアラート</li>
+            <li><span class="tag">案</span> 係数 ☀️1 / ☁️0.75 / ☔️0.5 / ⚡️0.25 と移動平均</li>
+            <li><span class="tag">案</span> 生活時間帯に push 通知</li>
+          </ul>
+        </div>
+        <div class="feature">
+          <span class="fid">F-05 / F-06</span><h3>体重・体温とグラフ</h3>
+          <ul>
+            <li>1日に複数回記録、ログとして残す</li>
+            <li>グラフは平均値。体重は棒、体温は折れ線</li>
+            <li>日・週・月・年、セルフワーク時間の集計</li>
+            <li><span class="tag">案</span> 生理周期はなくし、Apple Watch / Fitbit 連携を月額で</li>
+          </ul>
+        </div>
+        <div class="feature">
+          <span class="fid">F-07</span><h3>セルフワーク</h3>
+          <ul>
+            <li>瞑想 / ヨガ / ジャーナリング / モーニングダイアリー / 断捨離 / フィットネスダンス</li>
+            <li>コースは 3 / 5 / 10 分。瞑想はボイス選択あり</li>
+            <li>中断時は別のコーチ・プログラムを提案</li>
+            <li>レポートでトリニティの改善を％表示</li>
+            <li><span class="tag">案</span> 終了後に3問アンケート</li>
+          </ul>
+        </div>
+        <div class="feature">
+          <span class="fid">F-08</span><h3>バッジ</h3>
+          <ul>
+            <li>達成でバッジ（シングルスター、ダブルスター）</li>
+            <li>種類と獲得条件は未定義</li>
+          </ul>
+        </div>
+        <div class="feature">
+          <span class="fid">F-09</span><h3>アラーム・通知</h3>
+          <ul>
+            <li>起床・オフ・就寝の各アラーム、任意時刻の追加</li>
+            <li>トレーナーが「おはよう」、スヌーズで「早く起きよう！」</li>
+            <li>アラームはマナーモードでも鳴らす。ガイド音・BGMは鳴らさない（イヤホン時は鳴る）</li>
+            <li>UX 設計が必要（付箋）</li>
+          </ul>
+        </div>
+        <div class="feature">
+          <span class="fid">F-10 / F-11</span><h3>サウンドほか</h3>
+          <ul>
+            <li>オープニングサウンド、ホームとセルフワークにオリジナル曲</li>
+            <li>問い合わせはメール、または Google フォーム</li>
+            <li>iPhone SE サイズの画面を作成</li>
+            <li>横画面時のルールは未定</li>
+          </ul>
+        </div>
+      </div>
+
+      <h3>セルフワークが効く領域</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>セルフワーク</th><th>体</th><th>心</th><th>魂</th><th>形式</th></tr></thead>
+          <tbody>
+            <tr><td>瞑想</td><td></td><td>●</td><td>●</td><td>静止画と声優の音声</td></tr>
+            <tr><td>ヨガ</td><td>●</td><td>●</td><td></td><td>動画</td></tr>
+            <tr><td>フィットネスダンス</td><td>●</td><td></td><td></td><td>動画（旧 Zumba）</td></tr>
+            <tr><td>ジャーナリング</td><td></td><td>●</td><td>●</td><td>未定</td></tr>
+            <tr><td>モーニングダイアリー</td><td></td><td>●</td><td></td><td>未定</td></tr>
+            <tr><td>断捨離</td><td></td><td>●</td><td></td><td>未定</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ========== データモデル ========== -->
+    <section id="data">
+      <div class="sec-head"><span class="eyebrow">05</span><h2>データモデル案</h2></div>
+      <p class="prose muted small">ボード上にデータ定義はないため、画面と仕様から推定したたたき台。</p>
+      <div class="diagram">
+<pre class="mermaid">
+erDiagram
+    USER ||--o| USER_PROFILE : has
+    USER ||--o{ AUTH_IDENTITY : "logs in with"
+    USER }o--|| TRAINER : selects
+    USER ||--o{ TRINITY_DIAGNOSIS : takes
+    TRINITY_DIAGNOSIS ||--o{ TRINITY_ANSWER : contains
+    TRINITY_QUESTION ||--o{ TRINITY_ANSWER : answered_by
+    USER ||--o{ DAILY_CONDITION : records
+    USER ||--o{ VITAL_LOG : records
+    USER ||--o{ SELFWORK_SESSION : performs
+    SELFWORK ||--o{ SELFWORK_COURSE : has
+    SELFWORK_COURSE ||--o{ SELFWORK_SESSION : played_in
+    USER ||--o{ USER_BADGE : earns
+    BADGE ||--o{ USER_BADGE : awarded
+    USER ||--o{ ALARM : sets
+</pre>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>エンティティ</th><th>主な項目</th></tr></thead>
+          <tbody>
+            <tr><td class="id">USER_PROFILE</td><td>姓名、性別、年代 or 生年月日、エリア、職種、婚姻状態、起床・オフ・就寝時間、trainer_id</td></tr>
+            <tr><td class="id">AUTH_IDENTITY</td><td>provider（email / google / apple）、provider_uid、email_verified_at</td></tr>
+            <tr><td class="id">TRINITY_DIAGNOSIS</td><td>taken_at、body / mind / spirit スコア（0〜100、未回答は NULL）</td></tr>
+            <tr><td class="id">TRINITY_ANSWER</td><td>question_id、value（1〜5）</td></tr>
+            <tr><td class="id">DAILY_CONDITION</td><td>date（1日1件）、weather（sunny / cloudy / rainy / thunder）</td></tr>
+            <tr><td class="id">VITAL_LOG</td><td>recorded_at、weight_kg、body_temp_c（1日に複数件）</td></tr>
+            <tr><td class="id">SELFWORK_COURSE</td><td>種目、duration_min（3 / 5 / 10）、voice、goal、media_url</td></tr>
+            <tr><td class="id">SELFWORK_SESSION</td><td>started_at / ended_at、completed、rating（NULL=スキップ）、trinity_before / after</td></tr>
+            <tr><td class="id">ALARM</td><td>type（wake / off / bed / custom）、time、enabled</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ========== コンテンツ ========== -->
+    <section id="contents">
+      <div class="sec-head"><span class="eyebrow">06</span><h2>コンテンツと配色</h2></div>
+      <h3>トレーナー</h3>
+      <div class="trainers">
+        <div class="trainer"><h3><span class="swatch" style="background:#f3e27a"></span>フローラ</h3><p class="small muted">女性 23歳 / Narcissus（水仙）</p><p class="small">朗らかで優しい癒し系。おっとりした喋り方だが芯は強い。毎朝の日記が日課。</p></div>
+        <div class="trainer"><h3><span class="swatch" style="background:#d9408a"></span>サザンカ</h3><p class="small muted">女性 29歳 / ブーゲンビリア</p><p class="small">明るく元気なお姉さん。サボると喝を入れ、頑張るとしっかり褒める。</p></div>
+        <div class="trainer"><h3><span class="swatch" style="background:#f26b3a"></span>サクヤ</h3><p class="small muted">男性 33歳 / Sunset Orange</p><p class="small">懐が深く自由主義。普段は三枚目、大事な時は二枚目。神社の跡取り。</p></div>
+        <div class="trainer"><h3><span class="swatch" style="background:#9fd12b"></span>ロータス</h3><p class="small muted">男性 27歳 / Chartreuse Green</p><p class="small">穏やかで聡明な読書家。礼儀正しく人望がある。</p></div>
+      </div>
+      <figure class="wide"><div class="ph"><img src="images/41_trainer-characters.jpg" alt="トレーナーの立ち絵" loading="lazy"><button type="button" class="zoom" aria-label="拡大して表示"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M11 8v6M8 11h6"/></svg></button></div><figcaption>立ち絵と表情差分（ボードより）</figcaption></figure>
+
+      <h3>コンテンツ制作（9/13 MTG）</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>種目</th><th>制作内容</th></tr></thead>
+          <tbody>
+            <tr><td>瞑想</td><td>最大4レッスン。呼吸なし版・呼吸あり版 × 5分 / 10分。声優と静止画は2パターン</td></tr>
+            <tr><td>ヨガ</td><td>動画撮影。5分版と10分版（テスト次第で追加）。ゴールを3〜5個決め、紐づくコースを最大10個</td></tr>
+            <tr><td>ワークアウト</td><td>フィットネスダンスの動画。5分 / 10分</td></tr>
+            <tr><td>ジャーナリング・断捨離・モーニングダイアリー</td><td>未定</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>配色</h3>
+      <div class="trinity">
+        <span class="chip"><span class="dot b"></span>Body ピンク</span>
+        <span class="chip"><span class="dot m"></span>Mind オレンジ</span>
+        <span class="chip"><span class="dot s"></span>Spirit 黄色</span>
+        <span class="chip"><span class="dot" style="background:#ef857d"></span><span class="mono">#ef857d</span> メインボタン</span>
+        <span class="chip"><span class="dot" style="background:#58afb3"></span><span class="mono">#58afb3</span> 確定・完了</span>
+      </div>
+      <p class="small muted prose">ホームのヘッダーは黄色、セルフワーク画面はピンクのグラデーション。メインカラーは 8/20 MTG で検討タスクになっており、最終決定はボード上で確認できない。</p>
+    </section>
+
+    <!-- ========== 未決事項 ========== -->
+    <section id="issues">
+      <div class="sec-head"><span class="eyebrow">07</span><h2>未決事項・仕様の矛盾</h2></div>
+      <h3>ボード内で食い違っているもの</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>項目</th><th>食い違い</th><th>確認すること</th></tr></thead>
+          <tbody>
+            <tr><td>トリニティ設問数</td><td>24問 / 25問（最小13問）/ 各5問の15問 / 5+4+4の13問</td><td>開発向けの「各5問」を正とするか</td></tr>
+            <tr><td>設問文</td><td>心と精神で重複</td><td>正式な文言と反転項目の扱い</td></tr>
+            <tr><td>3つ目の領域名</td><td>魂 / 精神 / Spirit が混在</td><td>UI 表記の統一</td></tr>
+            <tr><td>基本情報2</td><td>生年月日 / 年代。婚姻状態はカンプのみ</td><td>どちらにするか、婚姻状態は必要か</td></tr>
+            <tr><td>SNS ログイン</td><td>Google・Apple / Google・Facebook</td><td>Google / Apple で確定してよいか</td></tr>
+            <tr><td>2番目のタブ名</td><td>ダッシュボード / グラフ</td><td>名称の統一</td></tr>
+            <tr><td>コース時間</td><td>3・5・10分 / 5・10分</td><td>3分版を制作するか</td></tr>
+            <tr><td>トレーナーの解放</td><td>2人から選び解放 / 4人から自由</td><td>解放要素を入れるか</td></tr>
+            <tr><td>生理周期</td><td>入力 UI あり / 「なくす」</td><td>初期リリースに含めるか</td></tr>
+            <tr><td>トリニティ未回答</td><td>「ホームへ」で抜けられる / 最低1つ回答</td><td>未回答時のホーム表示</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <h3>定義がないもの</h3>
+      <div class="issues">
+        <details><summary>ロジック（トリニティ％、おすすめ、天気アイコン、継続日数、曇りアラート）</summary><div>
+          <p>設問スコアから％への変換、セルフワークによる改善幅、今日の状態の係数と移動平均の適用方法が未定義。</p>
+          <p>おすすめセルフワークは「トリニティの状態に連動」とだけ書かれている。各領域の天気アイコンを何から決めるかも不明。</p>
+          <p>継続日数は連続か累計か、日付の境界は0時か起床時間か。曇りアラートは何日で、何を出すか。</p>
+        </div></details>
+        <details><summary>未作成の画面</summary><div>
+          <p>ジャーナリング、モーニングダイアリー、断捨離の実行画面。グラフの詳細。アラーム UI。アプリ内通知、お知らせ一覧、利用規約、プライバシーポリシー（文章も必要）。スタートガイドの中身。</p>
+        </div></details>
+        <details><summary>マスタと選択肢</summary><div>
+          <p>年代、エリア、職種、婚姻状態の選択肢。バッジの種類と獲得条件。終了後アンケートの設問。</p>
+        </div></details>
+        <details><summary>技術的な論点</summary><div>
+          <p>マナーモード時の音の出し分け（iOS / Android のオーディオセッション設定）。iOS でアラームを確実に鳴らす手段には制約があるため技術検証が必要。</p>
+          <p>時間設定とボイス選択は「開発依存のため要共有」。音声ファイルを時間別に用意するか、組み合わせて再生するか。</p>
+          <p>メール認証の実装負荷（認証基盤で吸収するか）。退会時の削除方式。横画面と動画の全画面再生。課金（初期ワイヤーのプラン・支払い・クーポン）の扱い。</p>
+        </div></details>
+      </div>
+    </section>
+
+    <!-- ========== MTG ========== -->
+    <section id="meetings">
+      <div class="sec-head"><span class="eyebrow">08</span><h2>MTG メモ</h2></div>
+      <p class="prose muted small">年の記載はないが、曜日から 2021 年と推定。</p>
+      <div class="two">
+        <div class="feature">
+          <span class="fid">8/20</span><h3>デザイン担当との MTG</h3>
+          <ul>
+            <li>メインカラー（スタートガイドの背景色）を決める</li>
+            <li>スタートガイドの内容を決め、イラストを依頼</li>
+            <li>アカウントタブの詳細とフロー整理</li>
+            <li>アルゴリズム診断と設問の設計</li>
+            <li>デザイン担当: 会員登録、キャラクター選択、初期設問、ホーム</li>
+          </ul>
+        </div>
+        <div class="feature">
+          <span class="fid">9/6</span><h3>UI MTG</h3>
+          <ul>
+            <li>初期設問25問。気になる領域を選び最小13問に回答、続けるかホームへ</li>
+            <li>毎日、天気マークで今日の状態を選択</li>
+            <li>セルフワーク継続で％改善、再回答でリセット</li>
+            <li>今日の状態とトリニティ％は別データ</li>
+            <li>カレンダーで可視化、曇りが続くとアラート</li>
+          </ul>
+        </div>
+        <div class="feature">
+          <span class="fid">9/13</span><h3>ワークアウトの仕様</h3>
+          <ul>
+            <li>1レッスンは 5分 / 10分コース</li>
+            <li>瞑想: 静止画と声優、呼吸あり・なし × 5分 / 10分</li>
+            <li>ヨガ: 動画2本</li>
+            <li>ワークアウト: フィットネスダンスの動画</li>
+          </ul>
+        </div>
+        <div class="feature">
+          <span class="fid">開発向け付箋</span><h3>時期不明</h3>
+          <ul>
+            <li>iPhone SE 想定の画面を作成</li>
+            <li>マナーモード時の音の扱い</li>
+            <li>マインドだけ再診断でもボディから</li>
+            <li>アラーム設定の追加は UX 設計が必要（3/6 着手）</li>
+            <li>問い合わせ先の作成</li>
+          </ul>
+        </div>
+      </div>
+      <h3>過去のカンプ（参考）</h3>
+      <div class="shots">
+        <figure><div class="ph"><img src="images/30_legacy-designs-overview.jpg" alt="過去のカンプ全体" loading="lazy"><button type="button" class="zoom" aria-label="拡大して表示"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M11 8v6M8 11h6"/></svg></button></div><figcaption>過去のカンプ全体</figcaption></figure>
+        <figure><div class="ph"><img src="images/31_legacy-weight-input-colors.jpg" alt="配色違い" loading="lazy"><button type="button" class="zoom" aria-label="拡大して表示"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M11 8v6M8 11h6"/></svg></button></div><figcaption>体重入力の配色違い</figcaption></figure>
+        <figure><div class="ph"><img src="images/32_legacy-trainer-select-variants.jpg" alt="トレーナー選択の別案" loading="lazy"><button type="button" class="zoom" aria-label="拡大して表示"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M11 8v6M8 11h6"/></svg></button></div><figcaption>トレーナー選択の別案</figcaption></figure>
+        <figure><div class="ph"><img src="images/34_legacy-wireframes-home-dashboard.jpg" alt="初期ワイヤー" loading="lazy"><button type="button" class="zoom" aria-label="拡大して表示"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M11 8v6M8 11h6"/></svg></button></div><figcaption>初期のホーム・ダッシュボードのワイヤー</figcaption></figure>
+      </div>
+    </section>
+
+    <section id="tech">
+      <div class="sec-head"><span class="eyebrow">09</span><h2>技術選定の選択肢</h2></div>
+      <p class="muted"><strong>対象は iOS / Android の両方、インフラは Supabase。</strong>最終判断は、末尾の「決めるための前提」が揃ってから行う。</p>
+
+      <h3>技術選定に効く要件</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>要件</th><th>技術的な影響</th></tr></thead>
+          <tbody>
+            <tr><td>目覚ましアラーム（マナーモードでも鳴らす）</td><td>OS 固有の API が必要。クロスプラットフォームでもネイティブ実装が残る</td></tr>
+            <tr><td>ガイド音声・BGM はマナーモードで鳴らさず、イヤホン時は鳴らす</td><td>iOS の AVAudioSession / Android の AudioFocus の細かな制御</td></tr>
+            <tr><td>瞑想（静止画＋音声）、ヨガ・ダンス（動画）</td><td>動画配信（ストリーミングかダウンロード）、全画面再生、横画面</td></tr>
+            <tr><td>トリニティ％、今日の状態、グラフ、カレンダー</td><td>日次ログの集計。データはリレーショナル寄り</td></tr>
+            <tr><td>トレーナー 4 人とボイス</td><td>音声素材が多い。時間別ボイスの組み合わせ</td></tr>
+            <tr><td>SNS ログイン（Google / Apple）</td><td>iOS で他社ログインを出すなら Sign in with Apple が必須</td></tr>
+            <tr><td>体重・体温・生理周期、ウェアラブル連携の案</td><td>HealthKit / Health Connect との連携</td></tr>
+            <tr><td>課金（初期 WF に記載）</td><td>アプリ内課金。サブスクなら購読状態の管理</td></tr>
+            <tr><td>コンテンツの追加・差し替え</td><td>運営向けの管理画面（CMS）</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>構成案</h3>
+      <div class="features">
+        <div class="feature">
+          <span class="fid">案 A</span><h3>速度重視</h3>
+          <p class="small">Flutter＋Supabase（supabase_flutter）＋FCM＋RevenueCat＋Sentry</p>
+          <p class="small muted">UI の統一感とリリース速度を優先する場合</p>
+        </div>
+        <div class="feature">
+          <span class="fid">案 B</span><h3>TypeScript 統一</h3>
+          <p class="small">React Native（Expo）＋Supabase（supabase-js）＋Expo Push / FCM＋RevenueCat＋Sentry</p>
+          <p class="small muted">React で管理画面などの Web も本格的に作る場合</p>
+        </div>
+        <div class="feature">
+          <span class="fid">案 C</span><h3>ネイティブ個別実装</h3>
+          <p class="small">Swift（SwiftUI）＋Kotlin（Jetpack Compose）＋Supabase（supabase-swift / supabase-kt）＋FCM＋RevenueCat＋Sentry</p>
+          <p class="small muted">OS 固有機能の品質を優先する場合。ユーザー向けの Web がない、または管理画面が小さい場合</p>
+        </div>
+      </div>
+      <div class="note">
+        <h3>どの案でも共通</h3>
+        <p class="small">アラームとオーディオセッションはネイティブコードになる。A・B を選ぶ場合も、最初にこの部分の技術検証（スパイク）を行う。iOS は iOS 26 の AlarmKit でマナーモードを越えて鳴らせるようになったが、対応バージョンと UI の制約は公式資料で要確認。Android は <code>AlarmManager</code> の正確なアラームと権限（<code>SCHEDULE_EXACT_ALARM</code> など）を確認する。</p>
+      </div>
+
+      <h3>構成案の比較</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th></th><th>案 A: Flutter</th><th>案 B: React Native</th><th>案 C: Swift / Kotlin</th></tr></thead>
+          <tbody>
+            <tr><td><strong>考え方</strong></td><td>1 つのコードベースで UI とロジックを両 OS 共通にする</td><td>Web・アプリ・Edge Functions を TypeScript に統一する</td><td>各 OS を公式の言語・UI フレームワークで個別に実装する</td></tr>
+            <tr><td><strong>強み</strong></td><td>同じ画面を一度で作れ、両 OS の差分が生まれにくい。リング型グラフなど独自 UI を描きやすい。ホットリロードで反復が速い</td><td>型・入力チェック・API 呼び出しを Web と共有できる。EAS Update で OTA 更新。Web の人材を活かせる</td><td>OS 固有機能を制約なく使え、ブリッジ層がない。単一言語・単一ツールチェーンのため AI の出力も安定しやすい。OS の新機能にすぐ対応できる</td></tr>
+            <tr><td><strong>品質を保つ仕組み</strong></td><td>ネイティブ機能（アラーム・音声・ヘルスケア）はプラグイン / Platform Channel に分離し、境界のインターフェースを先に決める。使うプラグインの保守状況を選定時に確認する</td><td>ネイティブ機能は Expo Modules（Swift / Kotlin）に切り出し、境界を明確にする。Web と共有するコードは monorepo のパッケージにまとめる</td><td>1 つの Issue / PR で両 OS を対応し、PR テンプレートに iOS / Android のチェック欄を置く。デザイントークンを 1 か所で定義して両 OS 向けに書き出す</td></tr>
+            <tr><td><strong>残るコスト</strong></td><td>ネイティブ部分は Dart＋Swift＋Kotlin の 3 言語になる。ブリッジ部分の不具合は追いにくい。OS の新機能はプラグインの対応待ちになりうる</td><td>ネイティブ部分は TypeScript＋Swift＋Kotlin の 3 言語になる。React Native / Expo のバージョン追従。ブリッジ部分の不具合は追いにくい</td><td>実装・レビュー・実機確認・CI・ストア申請が 2 系統。片方だけ直す反映漏れのリスクがある。アプリ側に共有ロジックが大きく残るなら Kotlin Multiplatform を検討</td></tr>
+            <tr><td><strong>向いている条件</strong></td><td>UI の統一感とリリース速度を優先する。Dart に抵抗がない</td><td>React で管理画面などの Web も本格的に作る</td><td>OS 固有機能の品質を優先する。ユーザー向けの Web がない、または管理画面が小さい</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="note">
+        <h3>どの案でも共通の前提</h3>
+        <ul class="small">
+          <li><strong>AI 駆動開発での見え方</strong>: AI がコードを書く前提では「書く量」の差は縮まり、レビュー・実機確認の量と、構成の分かりやすさ（境界の少なさ）の重みが増す。この観点で 3 案を比べる</li>
+          <li><strong>ロジックは Supabase に寄せる</strong>: トリニティ％や継続日数の計算は Postgres 関数 / Edge Functions に置き、アプリは表示に徹する</li>
+          <li><strong>仕様の正本を 1 つにする</strong>: <code>docs/</code> の画面仕様と DB から生成した型を実装の参照元にする</li>
+          <li><strong>E2E テスト</strong>: Maestro など両 OS で同じシナリオを流せるツールで、OS 間の挙動差を検出する</li>
+          <li><strong>選び方の目安</strong>: Web（管理画面）の規模が大きい → B、OS 固有機能の品質を優先 → C、UI の統一とリリース速度を優先 → A。現時点のボードにユーザー向け Web の記載はない</li>
+        </ul>
+      </div>
+
+      <h3>モバイルアプリ（クライアント）</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>選択肢</th><th>向いているケース</th><th>長所</th><th>短所・注意</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Flutter</strong></td><td>少人数で両 OS を同時に出す</td><td>UI の再現性が高く、リング型グラフなど独自 UI を描きやすい。1 コードベース</td><td>アラーム・オーディオ・HealthKit はプラグインかネイティブコード頼み。Dart の人材</td></tr>
+            <tr><td><strong>React Native（Expo）</strong></td><td>チームが TypeScript / Web に強い</td><td>Web 人材を活かせる。EAS Update で OTA 更新</td><td>OS 固有機能はネイティブモジュールの自作になりやすい</td></tr>
+            <tr><td><strong>ネイティブ（Swift / Kotlin）</strong></td><td>アラームや音声の品質を最優先し、工数を許容できる</td><td>AlarmKit / AlarmManager、HealthKit / Health Connect などを制約なく使える</td><td>両 OS で別々に実装するため工数がほぼ 2 倍。担当者も 2 系統必要</td></tr>
+            <tr><td><strong>Kotlin Multiplatform</strong></td><td>Kotlin に強く、ロジックだけ共通化したい</td><td>ロジック共有とネイティブ UI の両立</td><td>情報・人材がまだ少ない。iOS の UI は SwiftUI 併用が現実的</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>バックエンド <span class="small muted">→ Supabase に決定（比較のため残す）</span></h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>選択肢</th><th>長所</th><th>短所・注意</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Firebase</strong><br><span class="small muted">Auth / Firestore / Storage / Functions</span></td><td>立ち上げが最速。認証・プッシュ・分析・クラッシュ収集まで揃う</td><td>ドキュメント型のため、日次ログの集計やグラフ用クエリは設計の工夫が必要。ベンダーロックイン</td></tr>
+            <tr><td><strong>Supabase</strong><br><span class="small muted">Postgres / Auth / Storage / Edge Functions</span></td><td>SQL で集計しやすい。データモデルをそのまま表にできる。行レベルセキュリティ</td><td>プッシュや分析は別サービスで補う</td></tr>
+            <tr><td><strong>AWS</strong><br><span class="small muted">Amplify、または Cognito＋Lambda＋RDS</span></td><td>拡張性と細かい制御。社内に知見があれば有利</td><td>構築・運用の負荷が高い。小規模では過剰になりがち</td></tr>
+            <tr><td><strong>自前 API</strong><br><span class="small muted">NestJS / Go / Rails＋Cloud Run 等＋Postgres</span></td><td>ロジックを自由に書ける。移行しやすい</td><td>認証・インフラ・運用を自分たちで持つ</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="small muted">トリニティ％やおすすめのロジックを後から調整し続けるなら、計算はサーバー側に置き、アプリ更新なしで変えられるようにする。</p>
+
+      <h3>認証</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>選択肢</th><th>メモ</th></tr></thead>
+          <tbody>
+            <tr><td>Firebase Auth</td><td>メール・Google・Apple に対応。メール認証のリンク送信も標準</td></tr>
+            <tr><td>Supabase Auth</td><td>同上。Postgres のユーザーと直接結び付く</td></tr>
+            <tr><td>Amazon Cognito</td><td>AWS 構成なら。UI のカスタマイズはやや手間</td></tr>
+            <tr><td>Auth0 / Clerk など</td><td>高機能だが、ユーザー数に応じた費用</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="small muted">付箋の「メール認証は実装が大変」は、上のいずれかでほぼ解消する。初回は SNS ログインのみにする案もある。</p>
+
+      <h3>動画・音声の配信</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>選択肢</th><th>長所</th><th>短所・注意</th></tr></thead>
+          <tbody>
+            <tr><td><strong>アプリに同梱</strong></td><td>実装が最も簡単。オフラインで使える</td><td>容量が増える。差し替えにはアプリ更新が必要</td></tr>
+            <tr><td><strong>ストレージ＋CDN</strong><br><span class="small muted">Firebase Storage、S3＋CloudFront、R2</span></td><td>安い。MP4 をそのまま配信</td><td>画質の自動切り替えなし。視聴計測は自前</td></tr>
+            <tr><td><strong>動画配信サービス</strong><br><span class="small muted">Mux、Cloudflare Stream</span></td><td>HLS 変換・画質切り替え・視聴分析まで任せられる</td><td>視聴時間に応じた従量課金</td></tr>
+            <tr><td><strong>MediaConvert＋CloudFront</strong></td><td>細かく制御できる</td><td>構築の手間</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="small muted">瞑想は静止画＋音声なので音声配信だけで済む。動画は 1 種目あたり 2 本程度と少なく、初期はストレージ＋CDN か同梱でも足りる可能性が高い。早朝利用が中心なので、事前ダウンロードも検討する。</p>
+
+      <h3>コンテンツ管理・課金・その他</h3>
+      <div class="features">
+        <div class="feature">
+          <span class="fid">CMS</span><h3>コンテンツ管理</h3>
+          <ul class="small">
+            <li>BaaS の管理画面を直接使う（費用ゼロ。非エンジニアには危ない）</li>
+            <li>ヘッドレス CMS: microCMS（日本語 UI）、Contentful、Sanity</li>
+            <li>Retool などで DB 直結の管理画面</li>
+            <li>自作の管理画面（自由度・工数とも最大）</li>
+          </ul>
+        </div>
+        <div class="feature">
+          <span class="fid">課金</span><h3>アプリ内課金</h3>
+          <ul class="small">
+            <li><strong>RevenueCat</strong>: StoreKit と Play Billing をまとめて扱い、購読状態を一元管理。一定売上を超えると手数料</li>
+            <li><strong>直接実装</strong>: 手数料なし。レシート検証とサーバー通知を自前で持つ</li>
+            <li>課金するかどうか自体が未決（B-13）</li>
+          </ul>
+        </div>
+        <div class="feature">
+          <span class="fid">通知・連携</span><h3>通知とヘルスケア</h3>
+          <ul class="small">
+            <li>アプリ内リマインドはローカル通知、運営からのお知らせは FCM / APNs</li>
+            <li>iOS は HealthKit、Android は Health Connect。Fitbit は Web API</li>
+            <li>生理周期は特にセンシティブ。保存先と同意の取り方を先に決める</li>
+          </ul>
+        </div>
+        <div class="feature">
+          <span class="fid">品質</span><h3>分析・エラー収集</h3>
+          <ul class="small">
+            <li>行動分析: Firebase Analytics、Amplitude、Mixpanel</li>
+            <li>クラッシュ: Crashlytics、Sentry</li>
+            <li>設定値の切り替え・A/B: Remote Config など</li>
+          </ul>
+        </div>
+        <div class="feature">
+          <span class="fid">CI/CD</span><h3>ビルド・配信</h3>
+          <ul class="small">
+            <li>Flutter: Codemagic、GitHub Actions＋fastlane、OTA は Shorebird</li>
+            <li>React Native: EAS Build / EAS Update</li>
+            <li>ネイティブ: Xcode Cloud、GitHub Actions＋fastlane</li>
+          </ul>
+        </div>
+      </div>
+
+      <h3>Supabase 前提で決めること</h3>
+      <div class="note"><p class="small">最初に固めると後が楽なのは「環境の分け方」「マイグレーション管理」「RLS の方針」「ロジックの置き場所」の 4 つ。Supabase の仕様（プランの上限、キーの名称など）は変わりやすいので、決定前に公式ドキュメントで確認する。</p></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>分類</th><th>項目</th><th>決めること・選択肢</th></tr></thead>
+          <tbody>
+            <tr><td class="small muted">運用</td><td><strong>プランとリージョン</strong></td><td>Free プランは一定期間アクセスがないと停止する。本番は Pro 以上。リージョンは東京（ap-northeast-1）。コンピュートのサイズ</td></tr>
+            <tr><td class="small muted">運用</td><td><strong>環境の分け方</strong></td><td>dev / stg / prod を別プロジェクトにするか、Supabase Branching（PR ごとのプレビュー環境）を使うか</td></tr>
+            <tr><td class="small muted">運用</td><td><strong>バックアップ</strong></td><td>日次バックアップで足りるか、PITR（任意時点への復元、有料アドオン）を付けるか。健康データを扱うので PITR 推奨</td></tr>
+            <tr><td class="small muted">開発</td><td><strong>マイグレーション管理</strong></td><td>Supabase CLI のマイグレーションで SQL を Git 管理する。Studio（管理画面）で直接スキーマを変えない運用ルール</td></tr>
+            <tr><td class="small muted">開発</td><td><strong>ローカル開発</strong></td><td>Supabase CLI（Docker）でローカルに同じ構成を立てる。シードデータの用意</td></tr>
+            <tr><td class="small muted">開発</td><td><strong>型の生成</strong></td><td><code>supabase gen types</code> で DB の型を生成する（TypeScript など）。Flutter / ネイティブは型生成の手段を別途選ぶ</td></tr>
+            <tr><td class="small muted">開発</td><td><strong>クライアント SDK</strong></td><td>Flutter: supabase_flutter / RN: supabase-js（セッション保存先に SecureStore など） / ネイティブ: supabase-swift・supabase-kt</td></tr>
+            <tr><td class="small muted">DB</td><td><strong>スキーマ設計</strong></td><td>05 のデータモデルを Postgres の表に落とす。ユーザー別データは <code>auth.users</code> の ID を外部キーにする</td></tr>
+            <tr><td class="small muted">DB</td><td><strong>RLS（行レベルセキュリティ）</strong></td><td>全テーブルで RLS を有効化し、「本人の行だけ読み書き可」のポリシーを書く。マスタ（設問、セルフワーク）は全員読み取りのみ。RLS のテスト方法（pgTAP など）</td></tr>
+            <tr><td class="small muted">DB</td><td><strong>日付とタイムゾーン</strong></td><td><code>timestamptz</code> で保存し、ユーザーのタイムゾーンを持つ。「今日」の境界（0 時か起床時刻か）を決める（B-5）</td></tr>
+            <tr><td class="small muted">DB</td><td><strong>集計の持ち方</strong></td><td>グラフ・継続日数・トリニティ％を、都度 SQL で計算するか、日次サマリー表やマテリアライズドビューに持つか</td></tr>
+            <tr><td class="small muted">ロジック</td><td><strong>ロジックの置き場所</strong></td><td>① Postgres 関数（RPC）・トリガー ② Edge Functions（Deno / TypeScript） ③ 別の API サーバー。トリニティ％の算出はサーバー側に置き、アプリ更新なしで調整できるようにする</td></tr>
+            <tr><td class="small muted">ロジック</td><td><strong>定期実行</strong></td><td>Supabase Cron（pg_cron）で、曇りアラートの判定、日次集計、退会者データの削除などを回す</td></tr>
+            <tr><td class="small muted">ロジック</td><td><strong>Webhook の受け口</strong></td><td>RevenueCat、ストアのサーバー通知などを Edge Functions で受ける。署名の検証</td></tr>
+            <tr><td class="small muted">認証</td><td><strong>ログイン方式</strong></td><td>Google / Apple はネイティブの SDK でトークンを取り、<code>signInWithIdToken</code> で Supabase に渡すのが UX 上よい。Web 画面経由の OAuth にするか</td></tr>
+            <tr><td class="small muted">認証</td><td><strong>メール送信（SMTP）</strong></td><td>標準のメール送信は送信数の制限が厳しく本番向きではない。Resend、SendGrid、Amazon SES などの SMTP を設定する。メール文面の日本語化</td></tr>
+            <tr><td class="small muted">認証</td><td><strong>ディープリンク</strong></td><td>メール認証・パスワード再設定のリンクからアプリに戻す URL スキーム / Universal Links / App Links とリダイレクト URL の許可設定</td></tr>
+            <tr><td class="small muted">認証</td><td><strong>退会（アカウント削除）</strong></td><td>App Store はアプリ内からの削除を求める。<code>auth.users</code> の削除は秘密鍵が必要なので Edge Function 経由。関連テーブルは <code>ON DELETE CASCADE</code>、Storage のファイルも削除する</td></tr>
+            <tr><td class="small muted">認証</td><td><strong>キーの扱い</strong></td><td>アプリに入れるのは公開用のキー（publishable / 旧 anon）だけ。秘密鍵（secret / 旧 service_role）は Edge Functions とサーバーにのみ置く</td></tr>
+            <tr><td class="small muted">Storage</td><td><strong>バケット設計</strong></td><td>セルフワークの素材（全員読める・公開バケットか署名付き URL か）と、ユーザーのファイル（本人のみ）を分ける。Storage にも RLS</td></tr>
+            <tr><td class="small muted">Storage</td><td><strong>動画を Supabase Storage に置くか</strong></td><td>プランごとのファイルサイズ上限と、転送量（egress）の課金を確認する。動画が増えるなら Cloudflare R2 / Stream や Mux に分ける</td></tr>
+            <tr><td class="small muted">通知</td><td><strong>プッシュ通知</strong></td><td>Supabase に標準のプッシュはない。FCM（iOS も APNs 経由で送れる）を直接使うか、OneSignal / Expo Push を使う。端末トークンの表と、送信用の Edge Function</td></tr>
+            <tr><td class="small muted">課金</td><td><strong>購読状態の保持</strong></td><td>RevenueCat の Webhook で購読状態の表を更新し、有料コンテンツの RLS や判定に使う</td></tr>
+            <tr><td class="small muted">オフライン</td><td><strong>オフライン対応</strong></td><td>Supabase にはオフライン同期がない。早朝・電波の弱い場所でも記録させるなら、端末側の DB（SQLite / drift / WatermelonDB）や PowerSync を検討</td></tr>
+            <tr><td class="small muted">運用</td><td><strong>監視・ログ</strong></td><td>Supabase のログとレポートに加え、Sentry などでアプリとEdge Functions のエラーを集める</td></tr>
+            <tr><td class="small muted">運用</td><td><strong>管理画面</strong></td><td>Studio を運営に開放するのは危ない。運営用の権限（ロール）と、microCMS / Retool / 自作の管理画面のどれにするか</td></tr>
+            <tr><td class="small muted">データ</td><td><strong>機微情報の保護</strong></td><td>体重・体温・生理周期を扱う。保存時暗号化は標準。列単位の暗号化（Vault など）や、閲覧ログが必要か</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>決めるための前提（要回答）</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>前提</th><th>選定への影響</th></tr></thead>
+          <tbody>
+            <tr><td>チームの得意技術と人数</td><td>Flutter / React Native / ネイティブの選択（両 OS 前提なので、ネイティブなら iOS と Android の担当が別に必要）</td></tr>
+            <tr><td>初回リリースの範囲と時期</td><td>アラーム・課金・ヘルスケア連携を初回に入れるか</td></tr>
+            <tr><td>アラームは必須か</td><td>ネイティブ実装の比重。iOS / Android それぞれの最低対応バージョン</td></tr>
+            <tr><td>コンテンツの更新頻度と運営体制</td><td>同梱か配信か、CMS の要否</td></tr>
+            <tr><td>課金の有無と形式</td><td>RevenueCat か直接実装か</td></tr>
+            <tr><td>月額の予算</td><td>Supabase のプランとアドオン（PITR など）、動画配信の費用を許容できるか</td></tr>
+            <tr><td>既存の契約・資産（リポジトリ、使っている SaaS）</td><td>周辺サービス（メール送信、分析、監視）の選択</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>
+<script type="module">
+import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.esm.min.mjs";
+const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+mermaid.initialize({ startOnLoad: true, theme: dark ? "dark" : "default", securityLevel: "loose", flowchart: { htmlLabels: true } });
+</script>
+<dialog class="lightbox" id="lightbox"><button type="button" class="close" aria-label="閉じる">×</button><img alt=""><p></p></dialog>
+<script>
+(() => {
+  const dlg = document.getElementById("lightbox");
+  const big = dlg.querySelector("img"), cap = dlg.querySelector("p");
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest(".zoom");
+    if (!btn) return;
+    const fig = btn.closest("figure"), img = fig.querySelector("img");
+    big.src = img.src; big.alt = img.alt;
+    cap.textContent = fig.querySelector("figcaption")?.textContent || "";
+    dlg.showModal();
+  });
+  dlg.addEventListener("click", (e) => { if (e.target === dlg || e.target.closest(".close")) dlg.close(); });
+})();
+</script>
+</body>
+</html>

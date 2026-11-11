@@ -1,0 +1,1035 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>hanaemi 開発準備ガイド</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root {
+  --bg: #fbf8f9; --surface: #ffffff; --sunk: #f3eef0; --fg: #2a2328; --muted: #6e6369; --line: #e6dde1;
+  --accent: #c2456a; --accent-soft: #fbe3ea;
+  --biz: #2f7d6d; --biz-soft: #ddf1ec; --eng: #3b62b5; --eng-soft: #e1e9f8;
+  --warn-bg: #fff3d6; --warn-fg: #6e4d00; --ok: #2f7d4f;
+  --font-display: "Zen Maru Gothic", "Hiragino Maru Gothic ProN", "Noto Sans JP", sans-serif;
+  --font-body: "Noto Sans JP", "Hiragino Sans", "Yu Gothic", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --step--1: 0.8125rem; --step-0: 0.9375rem; --step-1: 1.125rem; --step-2: 1.5rem; --step-3: 2.1rem;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1b1619; --surface: #241e22; --sunk: #2d262a; --fg: #f1e9ed; --muted: #b3a6ad; --line: #3b3237;
+    --accent: #f08aa6; --accent-soft: #46262f;
+    --biz: #6fc9b4; --biz-soft: #1d3530; --eng: #8fb0f0; --eng-soft: #1f2a42;
+    --warn-bg: #3a3018; --warn-fg: #f1d48a; --ok: #7fd1a0;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1b1619; --surface: #241e22; --sunk: #2d262a; --fg: #f1e9ed; --muted: #b3a6ad; --line: #3b3237;
+  --accent: #f08aa6; --accent-soft: #46262f;
+  --biz: #6fc9b4; --biz-soft: #1d3530; --eng: #8fb0f0; --eng-soft: #1f2a42;
+  --warn-bg: #3a3018; --warn-fg: #f1d48a; --ok: #7fd1a0;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 24px; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font-body);
+  font-size: var(--step-0); line-height: 1.8;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+a { color: var(--accent); text-underline-offset: 3px; overflow-wrap: anywhere; }
+a:focus-visible, input:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+h1, h2, h3, h4 { font-family: var(--font-display); line-height: 1.4; margin: 0; text-wrap: balance; }
+h2 { font-size: var(--step-2); }
+h3 { font-size: var(--step-1); }
+h4 { font-size: var(--step-0); }
+p { margin: 0; }
+ul, ol { margin: 0; padding-left: 1.4em; }
+li + li { margin-top: .3em; }
+code { font-family: var(--font-mono); font-size: .88em; background: var(--sunk); padding: 1px 6px; border-radius: 5px; overflow-wrap: anywhere; }
+strong { font-weight: 700; }
+
+.layout { max-width: 1180px; margin: 0 auto; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 48px; padding: 40px 0 96px; }
+@media (max-width: 900px) { .layout { grid-template-columns: minmax(0, 1fr); gap: 24px; padding-top: 24px; } }
+.toc { position: sticky; top: 24px; align-self: start; max-height: calc(100vh - 48px); overflow-y: auto; font-size: var(--step--1); }
+@media (max-width: 900px) { .toc { position: static; max-height: none; } }
+.toc .brand { font-family: var(--font-display); font-size: var(--step-1); font-weight: 700; margin-bottom: 4px; }
+.toc .progress { color: var(--muted); margin-bottom: 12px; }
+.toc .bar { height: 6px; background: var(--sunk); border-radius: 99px; overflow: hidden; margin: 4px 0 14px; }
+.toc .bar span { display: block; height: 100%; width: 0; background: var(--ok); transition: width .2s; }
+.toc ol { list-style: none; padding: 0; display: grid; gap: 2px; }
+.toc li + li { margin: 0; }
+.toc a { display: block; padding: 4px 10px; border-radius: 6px; color: var(--fg); text-decoration: none; }
+.toc a:hover { background: var(--sunk); }
+.toc .num { font-family: var(--font-mono); color: var(--muted); margin-right: 6px; }
+
+main { display: grid; gap: 72px; min-width: 0; }
+section { display: grid; gap: 20px; min-width: 0; }
+.hero { display: grid; gap: 14px; }
+.hero h1 { font-size: var(--step-3); }
+.lead { max-width: 70ch; color: var(--muted); }
+.sec-head { display: grid; gap: 6px; border-bottom: 1px solid var(--line); padding-bottom: 12px; }
+.eyebrow { font-family: var(--font-mono); font-size: var(--step--1); color: var(--muted); }
+.meta { display: flex; flex-wrap: wrap; gap: 8px; }
+.tag { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px; border-radius: 99px; font-size: var(--step--1); border: 1px solid var(--line); background: var(--surface); white-space: nowrap; }
+.tag.biz { background: var(--biz-soft); color: var(--biz); border-color: transparent; font-weight: 700; }
+.tag.eng { background: var(--eng-soft); color: var(--eng); border-color: transparent; font-weight: 700; }
+.muted { color: var(--muted); }
+.small { font-size: var(--step--1); }
+
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; display: grid; gap: 12px; min-width: 0; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+.warn { background: var(--warn-bg); color: var(--warn-fg); border-radius: 12px; padding: 14px 18px; display: grid; gap: 6px; }
+.warn strong { color: inherit; }
+.tip { background: var(--accent-soft); border-radius: 12px; padding: 14px 18px; display: grid; gap: 6px; }
+
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: var(--step--1); min-width: 560px; }
+th, td { text-align: left; vertical-align: top; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+thead th { background: var(--sunk); font-weight: 700; white-space: nowrap; }
+tbody tr:last-child td { border-bottom: 0; }
+
+/* 手順 */
+.steps { list-style: none; padding: 0; counter-reset: step; display: grid; gap: 10px; }
+.steps > li { counter-increment: step; margin: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px 14px 56px; position: relative; display: grid; gap: 6px; }
+.steps > li::before { content: counter(step); position: absolute; left: 14px; top: 14px; width: 28px; height: 28px; border-radius: 99px; background: var(--sunk); font-family: var(--font-mono); font-weight: 500; display: grid; place-items: center; font-size: var(--step--1); }
+.steps > li.done { border-color: var(--ok); }
+.steps > li.done::before { background: var(--ok); color: var(--surface); content: "✓"; }
+.step-title { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; justify-content: space-between; }
+.step-title h4 { flex: 1 1 260px; }
+.step-title label { font-size: var(--step--1); color: var(--muted); display: inline-flex; gap: 6px; align-items: center; cursor: pointer; white-space: nowrap; }
+.step-title input { width: 16px; height: 16px; accent-color: var(--ok); }
+.steps .path { font-family: var(--font-mono); font-size: var(--step--1); color: var(--muted); }
+
+/* タイムライン */
+.timeline { display: grid; gap: 10px; }
+.lane { display: grid; grid-template-columns: 150px 1fr; gap: 12px; align-items: center; }
+@media (max-width: 600px) { .lane { grid-template-columns: 1fr; gap: 4px; } }
+.lane .name { font-size: var(--step--1); font-weight: 700; }
+.track { position: relative; height: 30px; background: var(--sunk); border-radius: 8px; }
+.seg { position: absolute; top: 4px; bottom: 4px; border-radius: 6px; font-size: .72rem; color: #fff; display: flex; align-items: center; padding: 0 8px; white-space: nowrap; overflow: hidden; }
+.seg.biz { background: var(--biz); } .seg.eng { background: var(--eng); } .seg.wait { background: repeating-linear-gradient(45deg, var(--muted), var(--muted) 6px, transparent 6px, transparent 10px); color: var(--fg); border: 1px solid var(--muted); }
+.axis { display: grid; grid-template-columns: 150px 1fr; gap: 12px; font-size: .72rem; color: var(--muted); }
+.axis .ticks { display: flex; justify-content: space-between; }
+@media (max-width: 600px) { .axis { grid-template-columns: 1fr; } .axis > span:first-child { display: none; } }
+</style>
+</head>
+<body>
+<div class="layout">
+  <nav class="toc" aria-label="目次">
+    <div class="brand">開発準備ガイド</div>
+    <div class="progress"><span id="prog-text">0 / 0 完了</span></div>
+    <div class="bar"><span id="prog-bar"></span></div>
+    <ol>
+      <li><a href="#overview"><span class="num">00</span>全体像</a></li>
+      <li><a href="#prep"><span class="num">01</span>事前準備</a></li>
+      <li><a href="#duns"><span class="num">02</span>D-U-N-S 番号</a></li>
+      <li><a href="#github"><span class="num">03</span>GitHub</a></li>
+      <li><a href="#apple"><span class="num">04</span>Apple Developer</a></li>
+      <li><a href="#google"><span class="num">05</span>Google Play</a></li>
+      <li><a href="#firebase"><span class="num">06</span>Firebase</a></li>
+      <li><a href="#mail"><span class="num">07</span>ドメイン・認証メール</a></li>
+      <li><a href="#hosting"><span class="num">08</span>Web（Firebase Hosting）</a></li>
+      <li><a href="#codemagic"><span class="num">09</span>Codemagic</a></li>
+      <li><a href="#manual"><span class="num">09B</span>手動でのテスト配信</a></li>
+      <li><a href="#testflight"><span class="num">10</span>テスト配信</a></li>
+      <li><a href="#release"><span class="num">11</span>本番配信</a></li>
+      <li><a href="#devenv"><span class="num">12</span>開発環境（エンジニア）</a></li>
+      <li><a href="#ledger"><span class="num">13</span>アカウント管理表</a></li>
+    </ol>
+    <p class="small muted" style="margin-top:16px">チェックはこのブラウザにだけ保存されます。</p>
+  </nav>
+
+  <main>
+    <header class="hero">
+      <span class="eyebrow">hanaemi / Flutter ＋ Firebase ＋ React（Web）</span>
+      <h1>開発環境・テスト配信・本番配信の準備ガイド</h1>
+      <p class="lead">アカウント作成からストア公開までに必要な手順を、担当者ごとに並べたものです。プロダクトオーナー（PO）が進める手順には <span class="tag biz">プロダクトオーナー</span>、エンジニアが進める手順には <span class="tag eng">エンジニア</span> を付けています。</p>
+      <div class="warn">
+        <strong>この資料の前提</strong>
+        <p class="small">画面名・メニュー名・料金は 2026 年 11 月時点の情報をもとにしています。各サービスは画面や条件をよく変えるため、見当たらない場合は各公式ヘルプの最新版を確認してください。金額は目安です。</p>
+      </div>
+    </header>
+
+    <!-- 00 -->
+    <section id="overview">
+      <div class="sec-head"><span class="eyebrow">00</span><h2>全体像</h2></div>
+
+      <h3>使うサービスと役割</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>サービス</th><th>何に使うか</th><th>費用の目安</th><th>主な担当</th></tr></thead>
+          <tbody>
+            <tr><td>D-U-N-S 番号</td><td>会社を国際的に識別する番号。Apple と Google の法人登録に必須</td><td>無料（Apple 経由で申請する場合）</td><td><span class="tag biz">プロダクトオーナー</span></td></tr>
+            <tr><td>GitHub</td><td>ソースコードの置き場所（プロダクトオーナーの個人アカウントにエンジニアを招待）</td><td>無料（ブランチ保護を使うなら Pro 月 4 USD 程度）</td><td><span class="tag biz">プロダクトオーナー</span></td></tr>
+            <tr><td>Apple Developer Program</td><td>iOS アプリの開発・TestFlight・App Store 公開</td><td>年 99 USD（日本では円建て）</td><td><span class="tag biz">プロダクトオーナー</span></td></tr>
+            <tr><td>Google Play Console</td><td>Android アプリのテスト配信・Google Play 公開</td><td>初回のみ 25 USD</td><td><span class="tag biz">プロダクトオーナー</span></td></tr>
+            <tr><td>Firebase / Google Cloud</td><td>ログイン、データベース、ファイル保存、サーバー処理、プッシュ通知、Web（管理画面・規約ページ）の公開。Codemagic から Google Play への自動アップロードにも使う</td><td>Spark（無料）または Blaze（従量課金）。どちらにするかは 6 章で判断</td><td><span class="tag biz">プロダクトオーナー</span> <span class="tag eng">エンジニア</span></td></tr>
+            <tr><td>ドメイン</td><td>Web のアドレス、認証メールの送信元</td><td>年 1,000〜数千円</td><td><span class="tag biz">プロダクトオーナー</span></td></tr>
+            <tr><td>Codemagic</td><td>アプリの自動ビルドと、TestFlight / Google Play へのテスト配信</td><td>無料枠あり。チーム利用は従量課金など</td><td><span class="tag biz">プロダクトオーナー</span> <span class="tag eng">エンジニア</span></td></tr>
+            <tr><td>Xcode ／ Transporter（手動配信の場合）</td><td>開発初期に、エンジニアの Mac から TestFlight へ直接アップロード（9B 章）</td><td>無料（Mac が必要）</td><td><span class="tag eng">エンジニア</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>進める順番とかかる時間</h3>
+      <p class="small muted">待ち時間が長いのは D-U-N-S 番号と、Apple・Google の法人審査です。<strong>最初に D-U-N-S 番号の確認・申請から始めてください。</strong>その間に他のサービスを並行して準備できます。</p>
+      <div class="card">
+        <div class="timeline" role="img" aria-label="準備のタイムライン。D-U-N-S番号の取得に最大2週間、その後Apple・Googleの法人登録に数日から2週間。GitHub、Firebase、Codemagicは初週に並行して準備できる">
+          <div class="axis"><span></span><div class="ticks"><span>1週目</span><span>2週目</span><span>3週目</span><span>4週目</span></div></div>
+          <div class="lane"><span class="name">事前準備・ドメイン</span><div class="track"><div class="seg biz" style="left:0;width:14%">共通メール等</div></div></div>
+          <div class="lane"><span class="name">D-U-N-S 番号</span><div class="track"><div class="seg biz" style="left:0;width:6%">申請</div><div class="seg wait" style="left:6%;width:32%">発行待ち（〜2週）</div></div></div>
+          <div class="lane"><span class="name">Apple 法人登録</span><div class="track"><div class="seg biz" style="left:38%;width:6%">申請</div><div class="seg wait" style="left:44%;width:28%">審査・電話確認</div></div></div>
+          <div class="lane"><span class="name">Google Play 登録</span><div class="track"><div class="seg biz" style="left:38%;width:6%">申請</div><div class="seg wait" style="left:44%;width:20%">本人確認</div></div></div>
+          <div class="lane"><span class="name">GitHub・Firebase</span><div class="track"><div class="seg biz" style="left:0;width:12%">作成・招待</div><div class="seg eng" style="left:12%;width:88%">開発</div></div></div>
+          <div class="lane"><span class="name">Codemagic・テスト配信</span><div class="track"><div class="seg biz" style="left:4%;width:8%">作成</div><div class="seg eng" style="left:72%;width:28%">連携・初回配信</div></div></div>
+        </div>
+      </div>
+
+      <h3>環境の分け方</h3>
+      <p class="small muted">開発中のデータが本番に混ざらないよう、3 つの環境を用意します。</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>環境</th><th>用途</th><th>Firebase</th><th>アプリ</th><th>Web</th></tr></thead>
+          <tbody>
+            <tr><td><strong>dev（開発）</strong></td><td>エンジニアの手元での開発</td><td><code>hanaemi-dev</code>（またはローカルのエミュレーター）</td><td>エンジニアの端末・シミュレーター</td><td>手元（localhost）</td></tr>
+            <tr><td><strong>stg（検証）</strong></td><td>チームでの動作確認・テスト配信</td><td><code>hanaemi-stg</code></td><td>TestFlight ／ Google Play 内部テスト</td><td>Firebase Hosting のプレビュー URL</td></tr>
+            <tr><td><strong>prod（本番）</strong></td><td>一般ユーザー向け</td><td><code>hanaemi-prod</code></td><td>App Store ／ Google Play</td><td>本番ドメイン</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 01 -->
+    <section id="prep">
+      <div class="sec-head"><span class="eyebrow">01</span><h2>事前準備</h2>
+        <div class="meta"><span class="tag biz">プロダクトオーナー</span><span class="tag">所要 半日</span></div></div>
+      <p class="lead">各サービスのアカウントを「個人のもの」で作ると、担当者が退職したときに会社が管理できなくなります。最初に会社として持つ共通のものを用意します。</p>
+      <ol class="steps" data-sec="prep">
+        <li><div class="step-title"><h4>会社の登記情報を英語表記で揃える</h4></div>
+          <p class="small">Apple・Google・D-U-N-S では、<strong>登記上の正式な会社名（英語表記）、所在地（英語表記）、代表電話番号</strong>を入力します。全サービスで同じ表記に統一してください。表記がずれると審査で差し戻されます。</p></li>
+        <li><div class="step-title"><h4>共通のメールアドレスを作る</h4></div>
+          <p class="small">例: <code>dev-admin@会社ドメイン</code>。各サービスのオーナーアカウントはこのアドレスで作ります。複数人が受信できるグループアドレス（Google グループなど）にしておくと、担当者の不在時も対応できます。</p>
+          <p class="small">Google Play 用に、このアドレスで <strong>Google アカウント</strong>も必要です（会社が Google Workspace ならそのまま使えます）。</p></li>
+        <li><div class="step-title"><h4>パスワード管理ツールを用意する</h4></div>
+          <p class="small">1Password や Bitwarden の「チーム（ビジネス）」プランで共有の保管庫（Vault）を作ります。ここにパスワード、二段階認証の復旧コード、後で出てくる<strong>鍵ファイル</strong>（Apple の .p8、Android の keystore、Google のサービスアカウント JSON）を保管します。</p>
+          <div class="warn"><p class="small"><strong>鍵やパスワードをチャットやメールで送らないでください。</strong>必ずパスワード管理ツール経由で共有します。</p></div></li>
+        <li><div class="step-title"><h4>二段階認証用の端末を決める</h4></div>
+          <p class="small">Apple のアカウントは、確認コードを受け取る iPhone か電話番号が必要です。会社の共用 iPhone か、管理責任者の端末を登録します。認証アプリ（Google Authenticator など）を使う場合は、復旧コードを必ずパスワード管理ツールに保存してください。</p></li>
+        <li><div class="step-title"><h4>支払い用の法人カードを用意する</h4></div>
+          <p class="small">Apple、Google、Firebase（Blaze の場合）、Codemagic はクレジットカード払いです。海外サービスの決済ができる法人カードを用意します。</p></li>
+        <li><div class="step-title"><h4>会社の Web サイトがあるか確認する</h4></div>
+          <p class="small">Apple の法人登録では、<strong>会社ドメインの Web サイト</strong>と、そのドメインのメールアドレスが求められます。サイトが無い場合は簡単なものでも先に用意してください。</p></li>
+        <li><div class="step-title"><h4>アプリの識別子（Bundle ID）を決める</h4></div>
+          <p class="small">アプリを一意に表す ID で、<strong>公開後は変更できません</strong>。会社ドメインを逆にした形が一般的です（例: 会社ドメインが <code>example.co.jp</code> なら <code>jp.co.example.hanaemi</code>）。エンジニアと相談して決めます。iOS と Android で同じものを使います。</p></li>
+      </ol>
+    </section>
+
+    <!-- 02 -->
+    <section id="duns">
+      <div class="sec-head"><span class="eyebrow">02</span><h2>D-U-N-S 番号の確認・取得</h2>
+        <div class="meta"><span class="tag biz">プロダクトオーナー</span><span class="tag">作業 30分 ＋ 発行待ち 最大2週間程度</span><span class="tag">無料</span></div></div>
+      <p class="lead">D-U-N-S（ダンズ）番号は、会社ごとに割り振られる 9 桁の番号です。Apple と Google Play に「法人」として登録するときに必須です。日本では東京商工リサーチ（TSR）が管理しています。すでに番号を持っている会社も多いので、まず確認します。</p>
+      <ol class="steps" data-sec="duns">
+        <li><div class="step-title"><h4>Apple の検索ツールで番号の有無を確認する</h4></div>
+          <p class="small">Apple Developer サイトの D-U-N-S 番号の案内ページ（<a href="https://developer.apple.com/support/D-U-N-S/" target="_blank" rel="noopener">developer.apple.com/support/D-U-N-S</a>）から検索ツールを開きます。検索には Apple アカウントでのサインインが必要です（次章の手順 1 で作るアカウントを先に作っておくとスムーズです）。</p>
+          <p class="small">会社名（英語）、所在地、電話番号を入力して検索します。<strong>すでに番号がある場合は、検索結果としてその場で画面に表示されます</strong>（メールを待つ必要はありません）。</p></li>
+        <li><div class="step-title"><h4>見つかった場合: 登録内容を確認する</h4></div>
+          <p class="small">表示された会社名・住所が正しいか確認し、<strong>番号と英語表記の会社名をそのまま控えます</strong>。Apple の登録ではこの表記と完全に一致させる必要があります。住所などが古い場合は TSR に変更を依頼します。</p></li>
+        <li><div class="step-title"><h4>見つからない場合: 同じツールから新規申請する</h4></div>
+          <p class="small">検索結果が無いときは、そのまま申請フォームに進めます。会社情報と連絡先を入力して送信します。申請後、TSR から確認の連絡（メール・電話）が来ることがあるので対応してください。</p>
+          <p class="small">番号が発行されると、<strong>申請時に入力したメールアドレスに番号が届きます</strong>。発行まで<strong>最大 2 週間程度</strong>かかります。発行後、Apple のシステムに反映されるまでさらに数日かかることがあります。</p></li>
+        <li><div class="step-title"><h4>番号をパスワード管理ツールの共有メモに記録する</h4></div>
+          <p class="small">番号、登録された英語の会社名・住所を記録し、Google Play の登録でも同じ情報を使います。</p></li>
+      </ol>
+    </section>
+
+    <!-- 03 -->
+    <section id="github">
+      <div class="sec-head"><span class="eyebrow">03</span><h2>GitHub（ソースコード管理）</h2>
+        <div class="meta"><span class="tag biz">プロダクトオーナー</span><span class="tag">所要 30分</span><span class="tag">無料〜</span></div></div>
+      <p class="lead">ソースコードは、プロダクトオーナーの<strong>個人の GitHub アカウント</strong>にリポジトリ（コードの置き場所）を作り、そこにエンジニアを「コラボレーター」として招待して運用します。以下、このアカウントを「リポジトリのオーナー」と呼びます。Codemagic と Web の自動公開（GitHub Actions）も、このオーナーのアカウントを通して設定します。</p>
+      <ol class="steps" data-sec="github">
+        <li><div class="step-title"><h4>GitHub アカウントを用意する</h4><span class="tag biz">プロダクトオーナー</span></div>
+          <p class="small">アカウントがなければ <a href="https://github.com/signup" target="_blank" rel="noopener">github.com/signup</a> で作成します。既存のアカウントを使っても構いません。</p>
+          <p class="path">右上のアイコン → Settings → Password and authentication</p>
+          <p class="small">二段階認証を有効にします。復旧コードはパスワード管理ツールに保存します。</p></li>
+        <li><div class="step-title"><h4>リポジトリの構成をエンジニアと決める</h4><span class="tag biz">プロダクトオーナー</span> <span class="tag eng">エンジニア</span></div>
+          <p class="small">アプリ（Flutter）、Web（React）、Firebase の設定（Cloud Functions のコード、セキュリティルールなど）を 1 つのリポジトリにまとめるか、分けるかをエンジニアに決めてもらいます。リポジトリ名もここで決めます（例: <code>hanaemi</code>）。</p></li>
+        <li><div class="step-title"><h4>リポジトリを作る</h4><span class="tag biz">プロダクトオーナー</span></div>
+          <p class="path">右上の「＋」→ New repository</p>
+          <ul class="small">
+            <li>Owner: 自分のアカウント</li>
+            <li>Repository name: 手順 2 で決めた名前</li>
+            <li>公開範囲: <strong>Private（非公開）</strong>を必ず選ぶ</li>
+            <li>README などの初期ファイル: エンジニアの指示に従う（迷ったら何も追加しない）</li>
+          </ul>
+          <p class="small">リポジトリを分ける場合は、その数だけ作ります。</p></li>
+        <li><div class="step-title"><h4>エンジニアを招待する</h4><span class="tag biz">プロダクトオーナー</span></div>
+          <p class="path">リポジトリの画面 → Settings → Collaborators → Add people</p>
+          <p class="small">エンジニアの GitHub ユーザー名かメールアドレスを入力して招待します。エンジニアに招待メールのリンクから承認してもらうと完了です（<strong>招待の有効期限は 7 日</strong>。切れたら招待し直します）。リポジトリが複数ある場合は、それぞれで招待します。</p></li>
+        <li><div class="step-title"><h4>オーナーにしかできない操作を把握しておく</h4><span class="tag biz">プロダクトオーナー</span></div>
+          <p class="small">個人アカウントのリポジトリでは、招待されたエンジニアはコードの追加・変更はできますが、次の操作は<strong>オーナーにしかできません</strong>。エンジニアから依頼があったら対応します。</p>
+          <ul class="small">
+            <li>メンバーの追加・削除</li>
+            <li>Codemagic などの外部サービスとの連携の許可（9 章）</li>
+            <li>GitHub Actions の秘密の値の登録（Web の自動公開、8 章）</li>
+            <li>リポジトリの設定変更（ブランチの保護ルールなど）</li>
+            <li>リポジトリの名前変更・移管・削除</li>
+          </ul>
+          <p class="small">非公開リポジトリで「ブランチの保護ルール」（レビューなしでの反映を防ぐ設定）を使うには、オーナーのアカウントが有料の GitHub Pro（月 4 USD 程度）である必要があります。必要かどうかはエンジニアと相談してください。</p></li>
+      </ol>
+      <div class="tip">
+        <strong>将来、体制が変わったとき</strong>
+        <p class="small">オーナーの交代や、会社の Organization での管理に切り替えたくなった場合は、リポジトリを移管（Settings → Danger Zone → Transfer ownership）できます。移管後も古い URL は新しい URL に転送されます。ただし、Codemagic の連携と GitHub Actions の秘密の値は、移管先で設定し直しが必要です。</p>
+      </div>
+    </section>
+
+    <!-- 04 -->
+    <section id="apple">
+      <div class="sec-head"><span class="eyebrow">04</span><h2>Apple Developer Program（iOS）</h2>
+        <div class="meta"><span class="tag biz">プロダクトオーナー</span><span class="tag">作業 1時間 ＋ 審査 数日〜2週間</span><span class="tag">年 99 USD</span></div></div>
+      <p class="lead">iOS アプリを実機で動かす、TestFlight でテスト配信する、App Store に公開する、のすべてに必要です。<strong>法人（Organization）として登録</strong>します。個人で登録すると、ストアに個人名が表示され、後から法人に移すのに手間がかかります。</p>
+      <div class="warn"><p class="small"><strong>申請する人について:</strong> 申請者は、会社を代表して Apple の契約に同意する権限がある人（代表者、または代表者から権限を与えられた人）である必要があります。審査中に Apple から申請者本人宛てに確認の電話が来ることがあります。</p></div>
+
+      <h3>A. 登録（法人）</h3>
+      <ol class="steps" data-sec="apple-a">
+        <li><div class="step-title"><h4>Apple アカウントを作る</h4></div>
+          <p class="small"><a href="https://account.apple.com/" target="_blank" rel="noopener">account.apple.com</a> で共通メールアドレス（会社ドメインのもの）を使って作成します。<strong>二段階認証が必須</strong>です。氏名は申請者本人の実名にします。</p></li>
+        <li><div class="step-title"><h4>D-U-N-S 番号が Apple に反映されているか確認する</h4></div>
+          <p class="small">前章で確認した番号を使います。新規取得した場合は、Apple 側に反映されるまで待ってから次に進みます。</p></li>
+        <li><div class="step-title"><h4>登録を開始する</h4></div>
+          <p class="small"><a href="https://developer.apple.com/programs/enroll/" target="_blank" rel="noopener">developer.apple.com/programs/enroll</a> から「登録を開始」を選びます。iPhone / Mac の「Apple Developer」アプリからも登録できます。</p></li>
+        <li><div class="step-title"><h4>「組織（Organization）」を選んで会社情報を入力する</h4></div>
+          <ul class="small">
+            <li>法人名: <strong>D-U-N-S に登録されている英語表記と完全に同じ</strong>にする</li>
+            <li>D-U-N-S 番号</li>
+            <li>会社の Web サイト（会社ドメインのもの）</li>
+            <li>勤務先メールアドレス（会社ドメインのもの）、電話番号</li>
+            <li>申請者の役職、法的な権限の有無</li>
+          </ul></li>
+        <li><div class="step-title"><h4>Apple の確認を待つ</h4></div>
+          <p class="small">Apple が会社情報と申請者の権限を確認します。数日〜2 週間程度かかります。電話やメールで追加の確認が来たら対応します。</p></li>
+        <li><div class="step-title"><h4>年会費を支払う</h4></div>
+          <p class="small">承認のメールが届いたら、案内に従って法人カードで支払います。支払い後に「メンバーシップ有効化」のメールが届けば登録完了です。<strong>自動更新を有効</strong>にしておくと、期限切れでアプリが配信停止になるのを防げます。</p></li>
+      </ol>
+
+      <h3>B. 契約・税金・口座（課金をするなら必須）</h3>
+      <ol class="steps" data-sec="apple-b">
+        <li><div class="step-title"><h4>App Store Connect にサインインする</h4></div>
+          <p class="small"><a href="https://appstoreconnect.apple.com/" target="_blank" rel="noopener">appstoreconnect.apple.com</a> に同じ Apple アカウントでサインインします。</p></li>
+        <li><div class="step-title"><h4>無料アプリの契約に同意する</h4></div>
+          <p class="path">ビジネス（Business）→ 契約</p>
+          <p class="small">最新の利用規約への同意を求められたら同意します。<strong>規約の更新に同意していないと、テスト配信や審査提出ができなくなる</strong>ことがあります。Account Holder（登録した本人）にしか同意できないので、定期的に確認してください。</p></li>
+        <li><div class="step-title"><h4>有料アプリの契約を結ぶ（アプリ内課金をする場合）</h4></div>
+          <p class="small">「有料 App」の契約で、次を登録します。</p>
+          <ul class="small">
+            <li>銀行口座（売上の入金先）</li>
+            <li>税務情報: 日本の法人は米国の税務フォーム <strong>W-8BEN-E</strong> を画面上で入力します。日米租税条約の適用欄があるので、分からなければ税理士に確認してください</li>
+            <li>連絡先（経理・法務・技術など）</li>
+          </ul>
+          <p class="small">課金をしない場合でも、後から追加できます。審査に数日かかるので、課金する予定なら早めに済ませます。</p></li>
+      </ol>
+
+      <h3>C. メンバーの招待</h3>
+      <ol class="steps" data-sec="apple-c">
+        <li><div class="step-title"><h4>エンジニアを App Store Connect に招待する</h4></div>
+          <p class="path">App Store Connect → ユーザとアクセス → 「＋」</p>
+          <p class="small">氏名とメールアドレス（本人の Apple アカウント）を入力し、役割を選びます。</p>
+          <div class="table-wrap"><table>
+            <thead><tr><th>役割</th><th>できること</th><th>付ける相手</th></tr></thead>
+            <tbody>
+              <tr><td>Admin（管理）</td><td>ほぼすべて。ユーザーの招待、API キーの発行</td><td>管理責任者、リーダーエンジニア</td></tr>
+              <tr><td>App Manager（App マネージャ）</td><td>アプリの情報編集、TestFlight、審査提出</td><td>リーダーエンジニア、PM</td></tr>
+              <tr><td>Developer（デベロッパ）</td><td>ビルドのアップロード、TestFlight の確認</td><td>エンジニア</td></tr>
+              <tr><td>Marketing（マーケティング）</td><td>ストア掲載情報の編集</td><td>マーケティング担当</td></tr>
+            </tbody>
+          </table></div>
+          <p class="small">エンジニアには「<strong>証明書、ID、プロファイルへのアクセス</strong>」（デベロッパリソース）にもチェックを入れます。これがないと開発用の証明書を作れません。</p></li>
+        <li><div class="step-title"><h4>テスト配信だけ見る人も招待する</h4></div>
+          <p class="small">社内の確認者は、役割を「Customer Support」などの権限の小さいものにして招待し、TestFlight の内部テスターに追加します（10 章）。社外の人は招待せず、TestFlight の外部テスターにします。</p></li>
+      </ol>
+
+      <h3>D. 自動配信用の鍵を発行する（Codemagic 用）</h3>
+      <ol class="steps" data-sec="apple-d">
+        <li><div class="step-title"><h4>App Store Connect API のアクセスを申請する（初回のみ）</h4></div>
+          <p class="path">ユーザとアクセス → 統合（Integrations）→ App Store Connect API</p>
+          <p class="small">初めて使うときは Account Holder が「アクセスをリクエスト」して利用規約に同意します。</p></li>
+        <li><div class="step-title"><h4>チームキーを作成する</h4></div>
+          <p class="small">「チームキー」で「＋」を押し、名前（例: <code>Codemagic</code>）とアクセス権「<strong>App Manager</strong>」を選んで作成します。</p></li>
+        <li><div class="step-title"><h4>3 つの情報を保管する</h4></div>
+          <ul class="small">
+            <li><strong>Issuer ID</strong>（画面上部に表示）</li>
+            <li><strong>キー ID</strong>（作成したキーの行に表示）</li>
+            <li><strong>.p8 ファイル</strong>（「API キーをダウンロード」）。<strong>ダウンロードは 1 回しかできません</strong>。すぐにパスワード管理ツールに保存してください</li>
+          </ul>
+          <p class="small">この 3 つを 9 章で Codemagic に登録します。</p></li>
+        <li><div class="step-title"><h4>プッシュ通知用の鍵（APNs キー）を作る</h4><span class="tag eng">エンジニア</span></div>
+          <p class="path">developer.apple.com → Certificates, Identifiers &amp; Profiles → Keys → 「＋」</p>
+          <p class="small">「Apple Push Notifications service (APNs)」にチェックを入れて作成し、.p8 ファイルをダウンロードします（こちらも 1 回のみ）。キー ID とチーム ID も控えます。6 章で Firebase に登録します。権限によってはエンジニアが作業できないので、その場合は Admin が作成します。</p></li>
+      </ol>
+    </section>
+
+    <!-- 05 -->
+    <section id="google">
+      <div class="sec-head"><span class="eyebrow">05</span><h2>Google Play Console（Android）</h2>
+        <div class="meta"><span class="tag biz">プロダクトオーナー</span><span class="tag">作業 1時間 ＋ 確認 数日〜</span><span class="tag">初回のみ 25 USD</span></div></div>
+      <p class="lead">Android アプリのテスト配信と Google Play への公開に必要です。こちらも<strong>「組織」アカウント</strong>で作ります。</p>
+      <div class="tip"><p class="small"><strong>なぜ組織アカウントか:</strong> 個人アカウントで新規登録した場合、本番公開の前に「12 人以上のテスターで 14 日間のクローズドテスト」が義務付けられています。組織アカウントにはこの条件がありません（条件は変わることがあるので、登録時に確認してください）。</p></div>
+
+      <h3>A. 登録（組織）</h3>
+      <ol class="steps" data-sec="google-a">
+        <li><div class="step-title"><h4>会社の Google アカウントでサインインする</h4></div>
+          <p class="small">共通メールアドレスの Google アカウントを使います。二段階認証を有効にします。</p></li>
+        <li><div class="step-title"><h4>Play Console に登録を開始する</h4></div>
+          <p class="small"><a href="https://play.google.com/console/signup" target="_blank" rel="noopener">play.google.com/console/signup</a> を開き、アカウントの種類で「<strong>組織</strong>」を選びます。</p></li>
+        <li><div class="step-title"><h4>お支払いプロファイル（組織）を作る</h4></div>
+          <p class="small">組織名、所在地、D-U-N-S 番号を入力します。D-U-N-S の情報と一致させてください。</p></li>
+        <li><div class="step-title"><h4>デベロッパー情報を入力する</h4></div>
+          <ul class="small">
+            <li><strong>デベロッパー名</strong>: Google Play のアプリページに表示される名前（例: 会社名）</li>
+            <li>組織の Web サイト、組織の電話番号</li>
+            <li>連絡先メールアドレス・電話番号（Google から確認コードが送られます）</li>
+            <li>アプリの予定（何本くらい、どんな種類かなど）を答える質問</li>
+          </ul></li>
+        <li><div class="step-title"><h4>登録料を支払う</h4></div>
+          <p class="small">25 USD を法人カードで支払います。</p></li>
+        <li><div class="step-title"><h4>本人確認・組織の確認を済ませる</h4></div>
+          <p class="small">申請者の本人確認（身分証の提出）や、組織の書類（登記事項証明書など）の提出を求められることがあります。Play Console のホーム画面に表示される案内に従います。確認が終わるまで数日かかります。</p></li>
+      </ol>
+
+      <h3>B. メンバーの招待</h3>
+      <ol class="steps" data-sec="google-b">
+        <li><div class="step-title"><h4>エンジニアを招待する</h4></div>
+          <p class="path">Play Console → ユーザーと権限 → 新しいユーザーを招待</p>
+          <p class="small">エンジニアの Google アカウントのメールアドレスを入力し、権限を選びます。</p>
+          <ul class="small">
+            <li>リーダーエンジニア: 「管理者（すべての権限）」</li>
+            <li>エンジニア: アプリ単位で「テストトラックへのリリース」「アプリ情報の閲覧」など</li>
+            <li>本番公開の権限（製品版トラックへのリリース）は限られた人だけに付けます</li>
+          </ul></li>
+      </ol>
+
+      <h3>C. アプリの作成と申告（エンジニアと一緒に）</h3>
+      <ol class="steps" data-sec="google-c">
+        <li><div class="step-title"><h4>アプリを作成する</h4></div>
+          <p class="path">Play Console → すべてのアプリ → アプリを作成</p>
+          <p class="small">アプリ名（後で変更可）、デフォルトの言語（日本語）、「アプリ」、「無料」を選びます。<strong>一度「無料」で公開すると有料アプリには変更できません</strong>。アプリ内課金は無料アプリでも可能です。</p></li>
+        <li><div class="step-title"><h4>「アプリのコンテンツ」の申告を埋める</h4></div>
+          <p class="path">Play Console → アプリ → ポリシー → アプリのコンテンツ</p>
+          <ul class="small">
+            <li>プライバシーポリシーの URL（8 章の Web で公開）</li>
+            <li>アプリへのアクセス（審査用のテストアカウント）</li>
+            <li>広告の有無</li>
+            <li>コンテンツのレーティング（アンケート形式）</li>
+            <li>ターゲットユーザー（年齢層）</li>
+            <li>データ セーフティ（どんなデータを集め、何に使うか）</li>
+            <li>健康アプリに関する申告（体重・体温・生理周期などを扱うため、該当する項目を確認）</li>
+          </ul>
+          <p class="small">本番公開までに埋めれば良いですが、内部テストの段階から少しずつ進めておくと楽です。</p></li>
+        <li><div class="step-title"><h4>アプリ内課金をする場合: 販売者アカウントを設定する</h4></div>
+          <p class="path">Play Console → 設定 → お支払いプロファイル</p>
+          <p class="small">売上の振込先の銀行口座を登録します。</p></li>
+      </ol>
+
+      <h3>D. 自動配信用の鍵を発行する（Codemagic 用）</h3>
+      <ol class="steps" data-sec="google-d">
+        <li><div class="step-title"><h4>Google Cloud でプロジェクトを用意する</h4><span class="tag eng">エンジニアと一緒に</span></div>
+          <p class="small"><a href="https://console.cloud.google.com/" target="_blank" rel="noopener">console.cloud.google.com</a> を会社の Google アカウントで開きます。6 章で作る Firebase の本番プロジェクト（<code>hanaemi-prod</code>）をそのまま使えます。</p></li>
+        <li><div class="step-title"><h4>Google Play Android Developer API を有効にする</h4></div>
+          <p class="path">API とサービス → ライブラリ → 「Google Play Android Developer API」→ 有効にする</p></li>
+        <li><div class="step-title"><h4>サービスアカウントを作り、鍵（JSON）をダウンロードする</h4></div>
+          <p class="path">IAM と管理 → サービス アカウント → サービス アカウントを作成</p>
+          <p class="small">名前は <code>codemagic-publisher</code> など。作成後、そのアカウントの「鍵」タブ → 鍵を追加 → 新しい鍵を作成 → JSON。ダウンロードした JSON をパスワード管理ツールに保存します。表示されたメールアドレス（<code>…@…iam.gserviceaccount.com</code>）を控えます。</p></li>
+        <li><div class="step-title"><h4>Play Console にサービスアカウントを招待する</h4></div>
+          <p class="path">Play Console → ユーザーと権限 → 新しいユーザーを招待</p>
+          <p class="small">控えたサービスアカウントのメールアドレスを入力し、hanaemi アプリに対して「テストトラックへのリリース」（本番も自動化するなら「製品版リリース」）などの権限を付けます。</p></li>
+        <li><div class="step-title"><h4>最初の 1 回は手動でアップロードする</h4><span class="tag eng">エンジニア</span></div>
+          <p class="small">新しいアプリは、最初のビルド（.aab）を Play Console から<strong>手動で</strong>内部テストにアップロードする必要があります。2 回目以降は Codemagic から自動で送れます。</p></li>
+      </ol>
+    </section>
+
+    <!-- 06 -->
+    <section id="firebase">
+      <div class="sec-head"><span class="eyebrow">06</span><h2>Firebase（データベース・認証・通知）</h2>
+        <div class="meta"><span class="tag biz">プロダクトオーナー</span><span class="tag eng">エンジニア</span><span class="tag">所要 1〜2時間</span><span class="tag">Spark（無料）または Blaze（従量課金）</span></div></div>
+      <p class="lead">Firebase（Google のサービス）を、アプリと Web の裏側の仕組みとして使います。開発中のデータが本番に混ざらないよう、環境ごとにプロジェクトを分けます。</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Firebase の機能</th><th>hanaemi での用途</th></tr></thead>
+          <tbody>
+            <tr><td>Authentication</td><td>会員登録・ログイン（メール、Google、Apple）</td></tr>
+            <tr><td>Cloud Firestore</td><td>データベース（プロフィール、今日の状態、トリニティの結果、セルフワークの記録など）</td></tr>
+            <tr><td>Cloud Storage</td><td>ファイルの保存（セルフワークの音声・画像など）</td></tr>
+            <tr><td>Cloud Functions</td><td>サーバー側の処理（トリニティ％の計算、定期処理、課金の通知の受け取り、退会時のデータ削除など）</td></tr>
+            <tr><td>Cloud Messaging（FCM）</td><td>プッシュ通知</td></tr>
+            <tr><td>Hosting</td><td>Web（管理画面・利用規約などのページ）の公開（8 章）</td></tr>
+            <tr><td>Crashlytics / Analytics / Remote Config</td><td>アプリのエラー収集、利用状況の分析、設定値の切り替え（使うかはエンジニアと相談）</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>料金プランの選び方（プロダクトオーナーが判断）</h3>
+      <p class="small">Spark と Blaze のどちらにするかは、下の比較と判断のポイントをもとに<strong>プロダクトオーナーが決めてください</strong>。プランはプロジェクトごとに選べ、Spark から Blaze へはいつでも切り替えられます（データはそのまま）。数値は目安です。最新の内容は <a href="https://firebase.google.com/pricing" target="_blank" rel="noopener">firebase.google.com/pricing</a> で確認してください。</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>項目</th><th>Spark（無料）</th><th>Blaze（従量課金）</th></tr></thead>
+          <tbody>
+            <tr><td>料金</td><td>無料。無料枠を超えると、その日（またはその月）は該当機能が止まる</td><td>使った分だけ支払い。Spark と同程度の無料枠を含むので、少量なら 0 円</td></tr>
+            <tr><td>Cloud Functions（サーバー側の処理）</td><td><strong>使えない</strong></td><td>使える</td></tr>
+            <tr><td>Cloud Storage（ファイル保存）</td><td>新しく作るプロジェクトでは使えない（要確認）</td><td>使える</td></tr>
+            <tr><td>Firestore の無料枠</td><td colspan="2">1 日あたり 読み取り 5 万回・書き込み 2 万回・削除 2 万回、保存 1GB 程度（Blaze は超過分が従量）</td></tr>
+            <tr><td>Firestore のバックアップ</td><td>なし</td><td>定期バックアップ・任意の時点への復元（PITR）を設定できる（保存量に応じて費用）</td></tr>
+            <tr><td>ログイン（メール・Google・Apple）</td><td colspan="2">基本無料（電話番号の SMS 認証は有料）</td></tr>
+            <tr><td>使いすぎの防止</td><td>無料枠で自動的に止まる</td><td><strong>自動では止まらない</strong>。予算アラート（メール通知）を必ず設定する</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="grid2">
+        <div class="card">
+          <h4>判断のポイント</h4>
+          <ul class="small">
+            <li>サーバー側の処理（Cloud Functions）やファイル保存（Cloud Storage）を使う設計か。使うなら Blaze が必要。<strong>エンジニアに確認</strong>する</li>
+            <li>データが消えたときに戻せる必要があるか（Firestore のバックアップは Blaze のみ）</li>
+            <li>月にいくらまでなら許容できるか。予算アラートの金額と通知先をどうするか</li>
+            <li>dev / stg は Spark、prod は Blaze、のように環境ごとに分けるか（ただし dev / stg でも Functions を試すなら Blaze が必要）</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h4>決めたこと（記入欄）</h4>
+          <div class="table-wrap"><table>
+            <tbody>
+              <tr><td>dev のプラン</td><td></td></tr>
+              <tr><td>stg のプラン</td><td></td></tr>
+              <tr><td>prod のプラン</td><td></td></tr>
+              <tr><td>予算アラートの金額・通知先</td><td></td></tr>
+              <tr><td>バックアップの方法と担当</td><td></td></tr>
+            </tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <h3>A. プロジェクトの作成と招待</h3>
+      <ol class="steps" data-sec="fb-a">
+        <li><div class="step-title"><h4>Firebase プロジェクトを作る</h4><span class="tag biz">プロダクトオーナー</span></div>
+          <p class="small"><a href="https://console.firebase.google.com/" target="_blank" rel="noopener">console.firebase.google.com</a> を会社の Google アカウント（共通メール）で開き、「プロジェクトを作成」を選びます。環境ごとに 3 つ作ります。</p>
+          <div class="table-wrap"><table>
+            <thead><tr><th>プロジェクト名</th><th>用途</th></tr></thead>
+            <tbody>
+              <tr><td><code>hanaemi-dev</code></td><td>開発</td></tr>
+              <tr><td><code>hanaemi-stg</code></td><td>検証・テスト配信</td></tr>
+              <tr><td><code>hanaemi-prod</code></td><td>本番</td></tr>
+            </tbody>
+          </table></div>
+          <p class="small">プロジェクト ID（URL などに使われる英数字）は<strong>後から変更できません</strong>。途中で聞かれる Google アナリティクスは、使うかどうかエンジニアと相談して決めます（後から有効にもできます）。</p></li>
+        <li><div class="step-title"><h4>Blaze にする場合: 請求先アカウントを設定する</h4><span class="tag biz">プロダクトオーナー</span></div>
+          <p class="path">プロジェクト → 左下のプラン表示 → アップグレード → Blaze</p>
+          <p class="small">Google Cloud の「請求先アカウント」を作り、法人カードを登録します。請求先アカウントは 1 つ作れば、複数のプロジェクトで共有できます。</p></li>
+        <li><div class="step-title"><h4>Blaze にする場合: 予算アラートを設定する</h4><span class="tag biz">プロダクトオーナー</span></div>
+          <p class="path">Google Cloud コンソール → お支払い → 予算とアラート → 予算を作成</p>
+          <p class="small">月の予算額（例: 5,000 円）と、通知するタイミング（予算の 50%・90%・100% など）、通知先のメールアドレスを設定します。<strong>予算を超えても自動では止まらない</strong>ので、通知を受けたら誰が確認するかも決めておきます。</p></li>
+        <li><div class="step-title"><h4>エンジニアを招待する</h4><span class="tag biz">プロダクトオーナー</span></div>
+          <p class="path">プロジェクト → 歯車アイコン → ユーザーと権限 → メンバーを追加</p>
+          <p class="small">エンジニアの Google アカウントのメールアドレスと役割を入力します。プロジェクトごとに招待が必要です。</p>
+          <div class="table-wrap"><table>
+            <thead><tr><th>役割</th><th>できること</th><th>付ける相手</th></tr></thead>
+            <tbody>
+              <tr><td>オーナー</td><td>すべて（メンバー管理、支払い設定を含む）</td><td>プロダクトオーナー、リーダーエンジニア</td></tr>
+              <tr><td>編集者</td><td>設定やデータの変更</td><td>エンジニア（prod は限られた人だけにする）</td></tr>
+              <tr><td>閲覧者</td><td>見るだけ</td><td>確認者</td></tr>
+            </tbody>
+          </table></div></li>
+        <li><div class="step-title"><h4>データの保存場所（ロケーション）を決める</h4><span class="tag biz">プロダクトオーナー</span> <span class="tag eng">エンジニア</span></div>
+          <p class="small">Firestore と Cloud Storage を作るときに、データを置く地域を選びます。<strong>東京（asia-northeast1）</strong>を選びます。<strong>後から変更できません</strong>。</p></li>
+      </ol>
+
+      <h3>B. エンジニアの作業</h3>
+      <ol class="steps" data-sec="fb-b">
+        <li><div class="step-title"><h4>アプリと Web を登録する</h4><span class="tag eng">エンジニア</span></div>
+          <p class="small">各プロジェクトに iOS・Android・Web のアプリを登録し、設定ファイルをアプリに組み込みます（FlutterFire CLI を使うと環境ごとにまとめて設定できます）。</p></li>
+        <li><div class="step-title"><h4>ログイン方法を有効にする</h4><span class="tag eng">エンジニア</span></div>
+          <p class="path">Authentication → Sign-in method</p>
+          <ul class="small">
+            <li>メール / パスワード</li>
+            <li>Google（下の手順 C の同意画面の設定が必要）</li>
+            <li>Apple（Apple Developer で「Sign in with Apple」用の設定と鍵が必要。Apple 側の作業に Admin 権限が要る場合はプロダクトオーナーが対応）</li>
+          </ul>
+          <p class="small">Authentication → 設定 → 承認済みドメイン に、Web（8 章）の独自ドメインを追加します。</p></li>
+        <li><div class="step-title"><h4>データベースとファイル保存のルールを書く</h4><span class="tag eng">エンジニア</span></div>
+          <p class="small">Firestore と Cloud Storage の「セキュリティルール」で、「本人のデータは本人だけが読み書きできる」などの制限をかけます。<strong>初期設定のテストモードのまま公開しない</strong>ことが重要です。ルールはファイルで管理し、stg → prod の順に反映します。</p></li>
+        <li><div class="step-title"><h4>APNs キーを登録する</h4><span class="tag eng">エンジニア</span></div>
+          <p class="path">プロジェクトの設定 → Cloud Messaging → Apple アプリの構成</p>
+          <p class="small">4 章 D で作った APNs キー（.p8）、キー ID、チーム ID を登録します。これで iOS にもプッシュ通知が届きます。</p></li>
+        <li><div class="step-title"><h4>不正なアクセスを防ぐ（App Check）</h4><span class="tag eng">エンジニア</span></div>
+          <p class="small">正規のアプリ以外から Firebase を使われないよう、App Check（iOS は App Attest、Android は Play Integrity）を設定します。</p></li>
+        <li><div class="step-title"><h4>バックアップを設定する</h4><span class="tag eng">エンジニア</span></div>
+          <p class="small">prod が Blaze なら、Firestore の定期バックアップ（または PITR）を設定します。Spark の場合はバックアップの手段がないため、プロダクトオーナーと方針を相談します。</p></li>
+      </ol>
+
+      <h3>C. Google ログインの同意画面</h3>
+      <ol class="steps" data-sec="fb-c">
+        <li><div class="step-title"><h4>同意画面を設定する</h4><span class="tag biz">プロダクトオーナー</span> <span class="tag eng">エンジニア</span></div>
+          <p class="path">Google Cloud コンソール（各 Firebase プロジェクト）→ Google Auth Platform（旧「OAuth 同意画面」）</p>
+          <p class="small">ユーザーがログインするときに表示されるアプリ名、サポート用メールアドレス、ロゴ、プライバシーポリシーと利用規約の URL を入力します。ロゴなどを載せる場合は Google の確認（ブランドの確認）が入ることがあります。</p>
+          <p class="small">Android の Google ログインには、Play Console の「アプリの署名」画面にある証明書のフィンガープリント（SHA-1）を Firebase のアプリ設定に登録する必要があります（エンジニア）。</p></li>
+      </ol>
+    </section>
+
+    <!-- 07 -->
+    <section id="mail">
+      <div class="sec-head"><span class="eyebrow">07</span><h2>ドメイン・認証メール</h2>
+        <div class="meta"><span class="tag biz">プロダクトオーナー</span><span class="tag eng">エンジニア</span><span class="tag">所要 1時間 ＋ DNS 反映待ち</span></div></div>
+      <p class="lead">会員登録の確認メールやパスワード再設定メールは、Firebase Authentication が送ります。初期設定では送信元が <code>noreply@プロジェクトID.firebaseapp.com</code> になるため、自社ドメインから送るように設定します（迷惑メールに入りにくくなり、ユーザーにも分かりやすくなります）。</p>
+      <ol class="steps" data-sec="mail">
+        <li><div class="step-title"><h4>使うドメインを決める</h4><span class="tag biz">プロダクトオーナー</span></div>
+          <p class="small">既存の会社ドメインを使うか、サービス用のドメイン（例: <code>hanaemi.jp</code>）を取得するか決めます。新しく取る場合は、お名前.com や Cloudflare Registrar などのドメイン取得サービスで取得します。<strong>ドメインの管理画面（DNS の設定）に入れる人</strong>を確認しておきます。</p>
+          <p class="small">決めておくアドレスの例: Web（<code>hanaemi.jp</code>）、管理画面（<code>admin.hanaemi.jp</code>）、メールの送信元（<code>noreply@hanaemi.jp</code>）、問い合わせ先（<code>support@…</code>）。</p></li>
+        <li><div class="step-title"><h4>Firebase でメールの送信元ドメインを設定する</h4><span class="tag biz">プロダクトオーナー</span> <span class="tag eng">エンジニア</span></div>
+          <p class="path">Firebase（prod）→ Authentication → テンプレート → いずれかのテンプレートの編集（鉛筆アイコン）→ ドメインをカスタマイズ</p>
+          <p class="small">送信に使うドメインを入力すると、DNS に追加するレコード（TXT / CNAME）が表示されます。</p></li>
+        <li><div class="step-title"><h4>DNS にレコードを追加する</h4><span class="tag biz">プロダクトオーナー</span></div>
+          <p class="small">ドメインの管理画面（DNS の設定）を開き、表示されたレコードを<strong>そのまま</strong>コピーして追加します。反映に数時間〜最大 48 時間ほどかかります。Firebase の画面で確認が完了すると、送信元を自社ドメインのアドレスに変更できます。迷惑メール扱いを減らすため、DMARC レコードも追加しておくとよいです。</p></li>
+        <li><div class="step-title"><h4>メールの文面を日本語にする</h4><span class="tag biz">プロダクトオーナー</span> <span class="tag eng">エンジニア</span></div>
+          <p class="path">Authentication → テンプレート → テンプレートの言語</p>
+          <p class="small">言語を日本語にし、送信者名（例: hanaemi）、件名、本文を確認します。文面はプロダクトオーナーが用意し、エンジニアが設定します。stg / prod それぞれのプロジェクトで設定が必要です。</p></li>
+        <li><div class="step-title"><h4>メールのリンクからアプリに戻す設定</h4><span class="tag eng">エンジニア</span></div>
+          <p class="small">確認メール・再設定メールのリンクを押したときに、アプリや Web に戻るための設定（アクション URL、ディープリンク）を行います。</p></li>
+      </ol>
+      <div class="tip"><p class="small"><strong>送れる数について:</strong> Firebase Authentication からのメール送信には 1 日あたりの上限があります。上限に近づく規模になった場合や、お知らせメールなど認証以外のメールを送る場合は、メール送信サービス（Resend、SendGrid など）の追加をエンジニアと検討します。</p></div>
+    </section>
+
+    <!-- 08 -->
+    <section id="hosting">
+      <div class="sec-head"><span class="eyebrow">08</span><h2>Web（React）の公開: Firebase Hosting</h2>
+        <div class="meta"><span class="tag biz">プロダクトオーナー</span><span class="tag eng">エンジニア</span><span class="tag">所要 1時間 ＋ DNS 反映待ち</span><span class="tag">無料枠あり</span></div></div>
+      <p class="lead">React で作る Web（運営用の管理画面、利用規約・プライバシーポリシーのページなど）は、6 章で作った Firebase のプロジェクトで公開します。アカウントや支払いを増やさずに済み、ログインやデータベースとも同じプロジェクトで管理できます。</p>
+      <div class="tip"><p class="small"><strong>Firebase での公開方法について:</strong> Firebase には「Hosting」と「App Hosting」があります。React の画面だけを配信するなら Hosting、サーバー側で画面を作る構成（Next.js など）なら App Hosting を使います（App Hosting は Blaze プランが必要）。どちらにするかはエンジニアが決めます。以下は Hosting の場合の流れです。</p></div>
+
+      <h3>A. 公開先の準備</h3>
+      <ol class="steps" data-sec="host-a">
+        <li><div class="step-title"><h4>公開するサイトの分け方を決める</h4><span class="tag biz">プロダクトオーナー</span> <span class="tag eng">エンジニア</span></div>
+          <p class="small">1 つの Firebase プロジェクトに複数のサイトを作れます。例えば次のように分けます。</p>
+          <div class="table-wrap"><table>
+            <thead><tr><th>サイト</th><th>アドレスの例</th><th>見られる人</th></tr></thead>
+            <tbody>
+              <tr><td>公開ページ（利用規約・プライバシーポリシー・アカウント削除の案内・LP）</td><td><code>hanaemi.jp</code></td><td>誰でも</td></tr>
+              <tr><td>管理画面</td><td><code>admin.hanaemi.jp</code></td><td>運営メンバーのみ（ログイン必須）</td></tr>
+            </tbody>
+          </table></div></li>
+        <li><div class="step-title"><h4>Hosting を有効にする</h4><span class="tag eng">エンジニア</span></div>
+          <p class="path">Firebase（stg / prod）→ 構築（Build）→ Hosting → 始める</p>
+          <p class="small">サイトを追加し、エンジニアが Firebase CLI で公開の設定をします。公開すると、まず <code>プロジェクトID.web.app</code> のアドレスで見られるようになります。</p></li>
+        <li><div class="step-title"><h4>GitHub と連携して自動公開にする</h4><span class="tag biz">プロダクトオーナー</span> <span class="tag eng">エンジニア</span></div>
+          <p class="small">エンジニアが設定すると、コードの更新時に GitHub Actions が自動で公開し、プルリクエストごとに確認用のプレビュー URL も作られます（stg の確認に使えます）。</p>
+          <p class="small">設定の途中で、GitHub のリポジトリに「秘密の値（Firebase に公開するための鍵）」を登録する操作があります。これは<strong>リポジトリのオーナー（プロダクトオーナー）にしかできない</strong>ので、エンジニアと画面を共有しながら一緒に作業するか、オーナーが登録します。</p></li>
+      </ol>
+
+      <h3>B. ドメイン</h3>
+      <ol class="steps" data-sec="host-b">
+        <li><div class="step-title"><h4>独自ドメインを追加する</h4><span class="tag biz">プロダクトオーナー</span> <span class="tag eng">エンジニア</span></div>
+          <p class="path">Firebase（prod）→ Hosting → カスタムドメインを追加</p>
+          <p class="small">公開に使うアドレス（例: <code>hanaemi.jp</code>、<code>admin.hanaemi.jp</code>）を入力すると、DNS に追加するレコード（TXT・A など）が表示されます。</p></li>
+        <li><div class="step-title"><h4>DNS にレコードを追加する</h4><span class="tag biz">プロダクトオーナー</span></div>
+          <p class="small">ドメインの管理画面を開き、表示されたレコードを<strong>そのまま</strong>追加します。確認とセキュリティ証明書（https）の発行が自動で行われ、数時間〜最大 24 時間ほどで独自ドメインで見られるようになります。</p>
+          <div class="warn"><p class="small">会社ドメインですでに Web サイトやメールを使っている場合、既存のレコードを消したり書き換えたりしないよう注意してください。不安な場合はエンジニアと一緒に作業します。</p></div></li>
+        <li><div class="step-title"><h4>ログインを許可するドメインに追加する</h4><span class="tag eng">エンジニア</span></div>
+          <p class="path">Authentication → 設定 → 承認済みドメイン</p>
+          <p class="small">管理画面の独自ドメインを追加します。追加しないと、管理画面でログインできません。</p></li>
+      </ol>
+
+      <h3>C. 管理画面と公開ページ</h3>
+      <ol class="steps" data-sec="host-c">
+        <li><div class="step-title"><h4>管理画面に入れる人を限定する</h4><span class="tag eng">エンジニア</span></div>
+          <p class="small">管理画面は Firebase Authentication でのログインを必須にし、さらに「運営メンバー」の権限（カスタムクレーム）を持つアカウントだけが操作できるようにします。データベースのルール側でも、運営メンバー以外は管理用のデータを読み書きできないようにします。<strong>画面を隠すだけでなく、データ側で必ず制限する</strong>ことが重要です。</p>
+          <p class="small">運営メンバーの追加・削除の手順（誰が、どうやって権限を付けるか）をエンジニアに用意してもらいます。</p></li>
+        <li><div class="step-title"><h4>プライバシーポリシーと利用規約のページを公開する</h4><span class="tag biz">プロダクトオーナー</span></div>
+          <p class="small">ストアの審査と Google ログインの設定で URL が必要です。文面は法務・専門家に確認のうえ用意し、エンジニアにページ化を依頼します。<strong>アカウント削除の方法</strong>を説明するページも必要です（Google Play の申告で求められます）。これらのページは誰でも見られる公開ページ側に置きます。</p></li>
+      </ol>
+    </section>
+
+    <!-- 09 -->
+    <section id="codemagic">
+      <div class="sec-head"><span class="eyebrow">09</span><h2>Codemagic（自動ビルド・テスト配信）</h2>
+        <div class="meta"><span class="tag biz">プロダクトオーナー</span><span class="tag eng">エンジニア</span><span class="tag">所要 1〜2時間</span><span class="tag">従量課金など</span></div></div>
+      <p class="lead">GitHub にコードが入ると、Codemagic が自動でアプリをビルドし、TestFlight と Google Play の内部テストに配信します。iOS のビルドには Mac が必要ですが、Codemagic のクラウド上の Mac を使うので手元に Mac がなくても配信できます。</p>
+      <div class="tip"><p class="small"><strong>始める前に揃えておくもの:</strong> 3 章の GitHub リポジトリ、4 章 D の App Store Connect API キー（Issuer ID・キー ID・.p8）、5 章 D の Google サービスアカウントの JSON。Apple・Google の登録が終わる前でも、アカウント作成とチーム招待は先に進められます。</p></div>
+
+      <h3>A. アカウントとチーム</h3>
+      <ol class="steps" data-sec="cm-a">
+        <li><div class="step-title"><h4>アカウントを作る</h4><span class="tag biz">プロダクトオーナー</span></div>
+          <p class="small"><a href="https://codemagic.io/signup" target="_blank" rel="noopener">codemagic.io/signup</a> から「GitHub でサインアップ」を選び、3 章のリポジトリのオーナーの GitHub アカウントで認証します。</p></li>
+        <li><div class="step-title"><h4>チームを作る</h4><span class="tag biz">プロダクトオーナー</span></div>
+          <p class="path">左メニュー → Teams → Create new team</p>
+          <p class="small">チーム名（例: 会社名）を入力します。チームで使うには支払い方法の登録が必要です。Billing で法人カードを登録し、料金プラン（ビルド時間に応じた従量課金、または固定料金）を選びます。最新の料金は <a href="https://codemagic.io/pricing/" target="_blank" rel="noopener">codemagic.io/pricing</a> で確認してください。</p></li>
+        <li><div class="step-title"><h4>メンバーを招待する</h4><span class="tag biz">プロダクトオーナー</span></div>
+          <p class="path">Teams → チーム名 → Team members → Invite</p>
+          <p class="small">エンジニアのメールアドレスを入力し、役割を選びます。リーダーエンジニアは <strong>Admin</strong>（設定や鍵の登録ができる）、他のエンジニアは <strong>Member</strong>。</p></li>
+        <li><div class="step-title"><h4>GitHub のリポジトリへのアクセスを許可する</h4><span class="tag biz">プロダクトオーナー</span></div>
+          <p class="small">アプリを追加する画面で GitHub と連携すると、GitHub 側で「Codemagic GitHub App」のインストール画面が開きます。インストール先に<strong>リポジトリのオーナーの個人アカウント</strong>を選び、「Only select repositories」で hanaemi のリポジトリだけを許可します。この操作はオーナーにしかできません。</p></li>
+      </ol>
+
+      <h3>B. 鍵の登録</h3>
+      <ol class="steps" data-sec="cm-b">
+        <li><div class="step-title"><h4>App Store Connect API キーを登録する</h4><span class="tag biz">プロダクトオーナー</span> <span class="tag eng">エンジニア</span></div>
+          <p class="path">Teams → チーム名 → Team integrations → Developer Portal → Connect</p>
+          <p class="small">キーの名前、Issuer ID、キー ID を入力し、.p8 ファイルをアップロードします。これで Codemagic が iOS の証明書の作成と TestFlight へのアップロードを自動で行えます。</p></li>
+        <li><div class="step-title"><h4>iOS の署名用証明書を用意する</h4><span class="tag eng">エンジニア</span></div>
+          <p class="path">Teams → チーム名 → Code signing identities → iOS certificates</p>
+          <p class="small">Codemagic 上で配布用の証明書を作成（または既存のものを取得）し、保存します。証明書の秘密鍵もパスワード管理ツールに保管します。</p></li>
+        <li><div class="step-title"><h4>Android の署名鍵（アップロード鍵）を作って登録する</h4><span class="tag eng">エンジニア</span></div>
+          <p class="path">Teams → チーム名 → Code signing identities → Android keystores</p>
+          <p class="small">エンジニアが keystore ファイルを作り、パスワード・エイリアスと一緒にアップロードします。Google Play では「Play アプリ署名」を使い、最終的な署名は Google が管理します。手元の keystore は「アップロード鍵」です。</p>
+          <div class="warn"><p class="small"><strong>keystore ファイルとパスワードは必ずパスワード管理ツールにバックアップしてください。</strong>紛失すると、Google に再設定を依頼する手続きが必要になり、その間アップデートを出せません。</p></div></li>
+        <li><div class="step-title"><h4>Google Play の鍵（JSON）を登録する</h4><span class="tag eng">エンジニア</span></div>
+          <p class="small">5 章 D で作ったサービスアカウントの JSON を、アプリの環境変数（秘密の値として）に登録します。</p></li>
+        <li><div class="step-title"><h4>環境ごとの設定値を登録する</h4><span class="tag eng">エンジニア</span></div>
+          <p class="path">アプリ → Environment variables（グループ: <code>stg</code> / <code>prod</code>）</p>
+          <p class="small">Firebase の設定ファイル（環境ごとに異なる）や API キーなど、環境で切り替える値を stg と prod に分けて「Secure」で登録します。</p></li>
+      </ol>
+
+      <h3>C. ビルドと配信の設定</h3>
+      <ol class="steps" data-sec="cm-c">
+        <li><div class="step-title"><h4>アプリを追加する</h4><span class="tag eng">エンジニア</span></div>
+          <p class="path">Applications → Add application → GitHub → リポジトリを選ぶ → Flutter App</p></li>
+        <li><div class="step-title"><h4>ワークフローを定義する</h4><span class="tag eng">エンジニア</span></div>
+          <p class="small">リポジトリに設定ファイル <code>codemagic.yaml</code> を置き、「いつ・何をビルドして・どこに配信するか」を書きます。おすすめの分け方:</p>
+          <div class="table-wrap"><table>
+            <thead><tr><th>きっかけ</th><th>ビルド</th><th>配信先</th></tr></thead>
+            <tbody>
+              <tr><td>プルリクエスト作成時</td><td>テストの実行のみ</td><td>なし（結果を GitHub に表示）</td></tr>
+              <tr><td>開発用ブランチ（例: <code>develop</code>）への反映</td><td>stg 向けの iOS / Android</td><td>TestFlight 内部テスト ／ Google Play 内部テスト</td></tr>
+              <tr><td>リリース用のタグ（例: <code>v1.0.0</code>）</td><td>prod 向けの iOS / Android</td><td>TestFlight ／ Google Play（審査提出は手動）</td></tr>
+            </tbody>
+          </table></div></li>
+        <li><div class="step-title"><h4>通知先を設定する</h4><span class="tag eng">エンジニア</span></div>
+          <p class="small">ビルドの成功・失敗をメールや Slack に通知するよう設定します。テスト配信が届いたことをプロダクトオーナーや確認者にも知らせると便利です。</p></li>
+        <li><div class="step-title"><h4>初回のビルドを実行して確認する</h4><span class="tag eng">エンジニア</span></div>
+          <p class="small">手動で 1 回ビルドを実行し、TestFlight と Google Play の内部テストにビルドが届くことを確認します。Android は 5 章 D の手順 5（最初の手動アップロード）を先に済ませておきます。</p></li>
+      </ol>
+    </section>
+
+    <!-- 09B -->
+    <section id="manual">
+      <div class="sec-head"><span class="eyebrow">09B</span><h2>手動アップロードでのテスト配信（開発期間中のパターン）</h2>
+        <div class="meta"><span class="tag eng">エンジニア</span><span class="tag biz">プロダクトオーナー</span><span class="tag">所要 初回 1〜2時間、2回目以降 20〜30分</span><span class="tag">追加費用なし</span></div></div>
+      <p class="lead">Codemagic を使わず、エンジニアの Mac でアプリをビルドし、TestFlight（Android は Google Play の内部テスト）に直接アップロードする方法です。Codemagic の設定が終わる前の開発初期や、テスト配信の回数が少ない時期に向いています。</p>
+
+      <h3>2 つのパターンの比較</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th></th><th>手動アップロード（本章）</th><th>Codemagic（9 章）</th></tr></thead>
+          <tbody>
+            <tr><td>準備</td><td>Xcode と Apple アカウントの設定だけ。すぐ始められる</td><td>アカウント作成、鍵の登録、ワークフローの設定が必要</td></tr>
+            <tr><td>費用</td><td>追加費用なし</td><td>ビルド時間に応じた費用（無料枠あり）</td></tr>
+            <tr><td>必要な機材</td><td>エンジニアの Mac（iOS のビルドに必須）</td><td>不要（クラウドの Mac を使う）</td></tr>
+            <tr><td>1 回の手間</td><td>エンジニアが 20〜30 分作業する。その間 Mac がふさがる</td><td>コードを反映すれば自動。人の作業はほぼなし</td></tr>
+            <tr><td>属人化</td><td>署名の設定や手順が特定の人の Mac に依存しやすい</td><td>設定がチームで共有され、誰がやっても同じ結果になる</td></tr>
+            <tr><td>ミスの起きやすさ</td><td>接続先（stg / prod）やビルド番号の指定ミスが起きうる</td><td>設定ファイルで固定されるため起きにくい</td></tr>
+            <tr><td>向いている時期</td><td>開発初期、配信が週 1 回程度まで</td><td>チームでの確認が増える時期、本番リリース前後</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="tip"><p class="small"><strong>おすすめの進め方:</strong> 開発初期は手動アップロードでテスト配信を始め、テスト配信の頻度が上がってきたら（または本番リリースの 1〜2 か月前までに）Codemagic に移行します。移行後も、Codemagic が使えないときの予備の手段として手動の手順を残しておけます。どちらのパターンでも、Apple・Google 側の準備（4・5 章）と、テスターの招待（10 章）は同じです。</p></div>
+
+      <h3>A. 共通: App Store Connect にアプリを登録する</h3>
+      <p class="small muted">TestFlight にアップロードする前に、アプリの「入れ物」を作ります。Codemagic を使う場合も必要です。</p>
+      <ol class="steps" data-sec="man-a">
+        <li><div class="step-title"><h4>Bundle ID を登録する</h4><span class="tag eng">エンジニア</span></div>
+          <p class="path">developer.apple.com → Certificates, Identifiers &amp; Profiles → Identifiers → 「＋」→ App IDs</p>
+          <p class="small">1 章で決めた Bundle ID を登録し、使う機能（Push Notifications、Sign in with Apple など）にチェックを入れます。stg 用に別の ID（例: 末尾に <code>.stg</code>）を使う場合は、それも登録します。Xcode の自動署名で自動登録されることもあります。</p></li>
+        <li><div class="step-title"><h4>App Store Connect でアプリを作成する</h4><span class="tag biz">プロダクトオーナー</span> <span class="tag eng">エンジニア</span></div>
+          <p class="path">App Store Connect → アプリ →「＋」→ 新規 App</p>
+          <ul class="small">
+            <li>プラットフォーム: iOS</li>
+            <li>名前: ストアに表示する名前（他のアプリと重複不可。後で変更可）</li>
+            <li>プライマリ言語: 日本語</li>
+            <li>バンドル ID: 手順 1 で登録したもの（<strong>後から変更不可</strong>）</li>
+            <li>SKU: 社内管理用の ID（例: <code>hanaemi-ios</code>。ユーザーには見えない）</li>
+          </ul>
+          <p class="small">stg 版を別アプリとして TestFlight に出す場合は、stg 用の Bundle ID でもう 1 つ作ります（名前は「hanaemi STG」など）。</p></li>
+      </ol>
+
+      <h3>B. iOS: Mac から TestFlight へアップロードする</h3>
+      <ol class="steps" data-sec="man-ios">
+        <li><div class="step-title"><h4>Xcode に Apple アカウントを追加する（初回のみ）</h4><span class="tag eng">エンジニア</span></div>
+          <p class="path">Xcode → Settings → Accounts →「＋」→ Apple Account</p>
+          <p class="small">4 章 C で招待された自分の Apple アカウントでサインインし、チーム（会社名）が表示されることを確認します。</p></li>
+        <li><div class="step-title"><h4>署名の設定をする（初回のみ）</h4><span class="tag eng">エンジニア</span></div>
+          <p class="path">Xcode で ios/Runner.xcworkspace を開く → Runner → Signing &amp; Capabilities</p>
+          <p class="small">「Automatically manage signing」をオンにし、Team に会社のチームを選びます。フレーバー（dev / stg / prod）ごとに Bundle ID が正しいか確認します。必要な機能（Push Notifications など）を Capabilities に追加します。</p></li>
+        <li><div class="step-title"><h4>バージョンとビルド番号を上げる</h4><span class="tag eng">エンジニア</span></div>
+          <p class="small"><code>pubspec.yaml</code> の <code>version: 1.0.0+12</code> の「+」の後ろ（ビルド番号）を、アップロードのたびに必ず増やします。<strong>同じビルド番号は 2 回アップロードできません。</strong>チームで番号が重ならないよう、誰が何番を使ったか記録します。</p></li>
+        <li><div class="step-title"><h4>アプリをビルドする</h4><span class="tag eng">エンジニア</span></div>
+          <p class="small">ターミナルで、接続先を指定してビルドします（例）:</p>
+          <p class="path">flutter build ipa --flavor stg -t lib/main_stg.dart</p>
+          <p class="small">成功すると <code>build/ios/archive/</code> にアーカイブ、<code>build/ios/ipa/</code> にアップロード用のファイルができます。<strong>stg / prod の指定を間違えないよう</strong>、コマンドをスクリプトにまとめておくと安全です。</p></li>
+        <li><div class="step-title"><h4>App Store Connect にアップロードする</h4><span class="tag eng">エンジニア</span></div>
+          <p class="small">次のどちらかの方法でアップロードします。</p>
+          <ul class="small">
+            <li><strong>Xcode の Organizer</strong>: <code>build/ios/archive/Runner.xcarchive</code> を開く → Distribute App → App Store Connect → Upload</li>
+            <li><strong>Transporter アプリ</strong>（Mac App Store で無料）: <code>build/ios/ipa/</code> の .ipa ファイルをドラッグして「配信」</li>
+          </ul></li>
+        <li><div class="step-title"><h4>処理が終わるのを待つ</h4><span class="tag eng">エンジニア</span></div>
+          <p class="small">App Store Connect → アプリ → TestFlight に、アップロードしたビルドが「処理中」で表示されます。10〜30 分ほどで完了し、Apple からメールが届きます。</p>
+          <p class="small">「輸出コンプライアンス（暗号化）に関する情報がありません」と表示されたら、質問に回答します（通常の HTTPS 通信だけなら「免除」）。設定ファイル（Info.plist）で回答を固定しておくと、毎回聞かれなくなります。</p></li>
+        <li><div class="step-title"><h4>テスト内容を書いてテスターに配る</h4><span class="tag biz">プロダクトオーナー</span> <span class="tag eng">エンジニア</span></div>
+          <p class="small">ビルドの「テスト内容」に、今回の変更点や確認してほしいことを書きます（テスターの TestFlight アプリに表示されます）。テスターのグループに追加すると配信されます（10 章）。</p></li>
+      </ol>
+
+      <h3>C. Android: Google Play の内部テストへアップロードする</h3>
+      <ol class="steps" data-sec="man-android">
+        <li><div class="step-title"><h4>アップロード鍵（keystore）を用意する（初回のみ）</h4><span class="tag eng">エンジニア</span></div>
+          <p class="small">エンジニアが keystore ファイルを作り、Flutter のプロジェクトから読み込むよう設定します（<code>android/key.properties</code>。<strong>この設定ファイルと keystore は Git に入れない</strong>）。keystore とパスワードはすぐにパスワード管理ツールに保存します。後で Codemagic に移行するときも同じ鍵を使います。</p></li>
+        <li><div class="step-title"><h4>バージョンを上げてビルドする</h4><span class="tag eng">エンジニア</span></div>
+          <p class="small">iOS と同じくビルド番号を増やしてから、ビルドします（例）:</p>
+          <p class="path">flutter build appbundle --flavor stg -t lib/main_stg.dart</p>
+          <p class="small"><code>build/app/outputs/bundle/</code> に .aab ファイルができます。</p></li>
+        <li><div class="step-title"><h4>Play Console からアップロードする</h4><span class="tag eng">エンジニア</span></div>
+          <p class="path">Play Console → アプリ → テスト → 内部テスト → 新しいリリースを作成</p>
+          <p class="small">.aab ファイルをアップロードし、リリース名とリリースノート（変更点）を入力して「保存」→「確認」→「内部テストとして公開を開始」。初回は「Play アプリ署名」の利用を求められるので同意します。</p></li>
+        <li><div class="step-title"><h4>テスターに配る</h4><span class="tag biz">プロダクトオーナー</span></div>
+          <p class="small">内部テストのテスターには数分〜1 時間ほどで更新が届きます。テスターの招待は 10 章を参照してください。</p></li>
+      </ol>
+      <div class="tip"><p class="small"><strong>Android のもう 1 つの選択肢:</strong> Firebase App Distribution を使うと、Google Play を通さずにテスト版（.apk）を配れます。Play Console の準備が終わる前でも配信でき、テスターは招待メールから専用アプリ経由でインストールします。ただし、アプリ内課金など Google Play が前提の機能は確認できません。</p></div>
+
+      <div class="warn">
+        <strong>手動アップロードで気をつけること</strong>
+        <ul class="small">
+          <li>テスト版は必ず <strong>stg</strong> 向けにビルドする。prod 向けを誤って配ると、テストのデータが本番に入ります</li>
+          <li>証明書や keystore を特定のエンジニアの Mac にだけ置かない。必ずパスワード管理ツールに保管する</li>
+          <li>アップロードした人・ビルド番号・接続先・コードのバージョン（Git のコミット）を、チャットや管理表に毎回残す</li>
+          <li>Xcode と Flutter のバージョンをチームで揃える（Codemagic 移行時にも同じバージョンを指定する）</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- 10 -->
+    <section id="testflight">
+      <div class="sec-head"><span class="eyebrow">10</span><h2>テスト配信（チーム・社外テスター）</h2>
+        <div class="meta"><span class="tag biz">プロダクトオーナー</span><span class="tag">所要 30分</span></div></div>
+      <p class="lead">Codemagic（9 章）または手動アップロード（9B 章）で届いたビルドを、確認してほしい人に配ります。テスト版は stg 環境（本番とは別のデータ）につながります。</p>
+      <div class="grid2">
+        <div class="card">
+          <h3>iOS: TestFlight</h3>
+          <div class="table-wrap"><table>
+            <thead><tr><th></th><th>内部テスター</th><th>外部テスター</th></tr></thead>
+            <tbody>
+              <tr><td>対象</td><td>App Store Connect に招待済みのメンバー</td><td>誰でも（社外の協力者など）</td></tr>
+              <tr><td>人数</td><td>最大 100 人</td><td>最大 10,000 人</td></tr>
+              <tr><td>Apple の審査</td><td>不要。すぐ配れる</td><td>各バージョンの最初のビルドで簡易審査（1 日程度）</td></tr>
+              <tr><td>招待方法</td><td>メール</td><td>メール、または公開リンク</td></tr>
+            </tbody>
+          </table></div>
+          <ol class="steps" data-sec="tf-ios">
+            <li><div class="step-title"><h4>テスターのグループを作る</h4></div>
+              <p class="path">App Store Connect → アプリ → TestFlight → 内部テスト（または外部テスト）→「＋」</p>
+              <p class="small">グループ名（例: 社内確認）を付け、テスターを追加します。内部グループでは「自動配信」をオンにすると、新しいビルドが自動で配られます。</p></li>
+            <li><div class="step-title"><h4>テスターにアプリを入れてもらう</h4></div>
+              <p class="small">テスターは iPhone に App Store から「<strong>TestFlight</strong>」アプリを入れ、届いた招待メールのリンク（または公開リンク）を開いてインストールします。</p></li>
+            <li><div class="step-title"><h4>外部テストの場合: テスト情報を入力する</h4></div>
+              <p class="small">テストの説明、フィードバック用のメールアドレス、審査用のログイン情報を入力して、ビルドを審査に出します。</p></li>
+          </ol>
+          <p class="small muted">TestFlight のビルドは 90 日で期限切れになります。</p>
+        </div>
+        <div class="card">
+          <h3>Android: Google Play のテスト</h3>
+          <div class="table-wrap"><table>
+            <thead><tr><th></th><th>内部テスト</th><th>クローズドテスト</th></tr></thead>
+            <tbody>
+              <tr><td>対象</td><td>チームメンバー</td><td>社外の協力者など</td></tr>
+              <tr><td>人数</td><td>最大 100 人</td><td>メールのリストや Google グループで指定</td></tr>
+              <tr><td>Google の審査</td><td>なし。すぐ配れる</td><td>あり（数時間〜数日）</td></tr>
+            </tbody>
+          </table></div>
+          <ol class="steps" data-sec="tf-android">
+            <li><div class="step-title"><h4>テスターのリストを作る</h4></div>
+              <p class="path">Play Console → アプリ → テスト → 内部テスト → テスター</p>
+              <p class="small">「メーリングリストを作成」で、テスターの Google アカウント（Gmail など）を登録します。</p></li>
+            <li><div class="step-title"><h4>参加用リンクを共有する</h4></div>
+              <p class="small">同じ画面の「テスターを招待する方法」に表示されるリンクをテスターに送ります。テスターはリンクを開いて「テストに参加」し、Google Play からインストールします。</p></li>
+          </ol>
+          <p class="small muted">テスターは Android 端末で、登録したものと同じ Google アカウントを使ってログインしている必要があります。</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 11 -->
+    <section id="release">
+      <div class="sec-head"><span class="eyebrow">11</span><h2>本番配信（ストア公開）</h2>
+        <div class="meta"><span class="tag biz">プロダクトオーナー</span><span class="tag eng">エンジニア</span><span class="tag">審査 iOS 1〜3日・Android 数日程度</span></div></div>
+      <p class="lead">ストアのページに載せる情報と、審査で求められる情報を揃えて提出します。初回の審査は差し戻されることも多いので、公開日の 2 週間ほど前には提出できる状態にしておくと安心です。</p>
+
+      <h3>事前に用意するもの（共通）</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>もの</th><th>App Store</th><th>Google Play</th><th>担当</th></tr></thead>
+          <tbody>
+            <tr><td>アプリ名</td><td>30 文字まで</td><td>30 文字まで</td><td><span class="tag biz">プロダクトオーナー</span></td></tr>
+            <tr><td>短い説明</td><td>サブタイトル 30 文字</td><td>簡単な説明 80 文字</td><td><span class="tag biz">プロダクトオーナー</span></td></tr>
+            <tr><td>詳しい説明</td><td>4,000 文字まで</td><td>4,000 文字まで</td><td><span class="tag biz">プロダクトオーナー</span></td></tr>
+            <tr><td>キーワード</td><td>100 文字（カンマ区切り）</td><td>なし（説明文から判断）</td><td><span class="tag biz">プロダクトオーナー</span></td></tr>
+            <tr><td>アイコン</td><td>アプリ本体に組み込み（1024×1024）</td><td>512×512 の PNG</td><td><span class="tag biz">プロダクトオーナー</span>（デザイン）</td></tr>
+            <tr><td>スクリーンショット</td><td>iPhone の大きい画面サイズ用（最新の必須サイズを確認）</td><td>スマホ用 2 枚以上</td><td><span class="tag biz">プロダクトオーナー</span>（デザイン）</td></tr>
+            <tr><td>アイキャッチ画像</td><td>なし</td><td>1024×500（必須）</td><td><span class="tag biz">プロダクトオーナー</span>（デザイン）</td></tr>
+            <tr><td>カテゴリ</td><td>ヘルスケア／フィットネス など</td><td>健康＆フィットネス など</td><td><span class="tag biz">プロダクトオーナー</span></td></tr>
+            <tr><td>プライバシーポリシー URL</td><td>必須</td><td>必須</td><td><span class="tag biz">プロダクトオーナー</span></td></tr>
+            <tr><td>サポート URL・連絡先</td><td>必須</td><td>メールアドレス必須</td><td><span class="tag biz">プロダクトオーナー</span></td></tr>
+            <tr><td>審査用のテストアカウント</td><td>必須（ログインが必要なため）</td><td>必須（同上）</td><td><span class="tag eng">エンジニア</span></td></tr>
+            <tr><td>データの扱いの申告</td><td>App のプライバシー（栄養ラベル）</td><td>データ セーフティ</td><td><span class="tag biz">プロダクトオーナー</span> <span class="tag eng">エンジニア</span></td></tr>
+            <tr><td>年齢区分</td><td>アンケートに回答</td><td>コンテンツのレーティング</td><td><span class="tag biz">プロダクトオーナー</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>審査で落ちやすいポイント（hanaemi に関係するもの）</h3>
+      <div class="grid2">
+        <div class="card"><h4>アカウント削除</h4><p class="small">アプリ内で会員登録できるなら、<strong>アプリ内から退会（アカウント削除）できる</strong>必要があります（Apple）。Google Play では、Web から削除を依頼できるページの URL も求められます。</p></div>
+        <div class="card"><h4>Apple でサインイン</h4><p class="small">Google ログインなど他社のログインを提供する場合、Apple は同等のプライバシー配慮があるログイン手段（通常は「Apple でサインイン」）の提供を求めます。</p></div>
+        <div class="card"><h4>健康に関する表現</h4><p class="small">「病気が治る」「医学的に効果がある」など、根拠のない医療的な表現はストアの説明文でも避けます。体重・体温・生理周期の扱いはデータの申告と一致させます。</p></div>
+        <div class="card"><h4>アプリ内課金</h4><p class="small">デジタルコンテンツの販売は、各ストアの課金の仕組みを使う必要があります。購入の復元ボタン、価格と期間の明記、利用規約へのリンクが必要です。</p></div>
+        <div class="card"><h4>テスト用の表示が残っている</h4><p class="small">「テスト」「ダミー」のデータや、未完成の画面・動かないボタンがあると差し戻されます。審査用アカウントでは中身が見える状態にしておきます。</p></div>
+        <div class="card"><h4>暗号化の申告</h4><p class="small">App Store Connect で暗号化の使用について聞かれます。通常の HTTPS 通信だけなら「免除の対象」です。エンジニアが設定ファイルで回答を固定しておくと毎回の質問を省けます。</p></div>
+      </div>
+
+      <h3>提出と公開の手順</h3>
+      <div class="grid2">
+        <div class="card">
+          <h4>App Store</h4>
+          <ol class="steps" data-sec="rel-ios">
+            <li><div class="step-title"><h4>アプリの情報を入力する</h4></div><p class="path">App Store Connect → アプリ → App Store タブ</p><p class="small">上の表の内容を入力します。「App のプライバシー」と「年齢制限指定」も埋めます。</p></li>
+            <li><div class="step-title"><h4>提出するビルドを選ぶ</h4></div><p class="small">TestFlight で確認済みの本番向けビルドを選びます。</p></li>
+            <li><div class="step-title"><h4>審査用の情報を入力する</h4></div><p class="small">テストアカウント、審査担当への補足（アラーム機能の確認方法など）、連絡先を入力します。</p></li>
+            <li><div class="step-title"><h4>公開方法を選んで審査に提出する</h4></div><p class="small">「審査通過後に手動で公開」を選ぶと、公開日をコントロールできます。「段階的リリース」を選ぶと、アップデートを 7 日間かけて少しずつ配れます。</p></li>
+          </ol>
+        </div>
+        <div class="card">
+          <h4>Google Play</h4>
+          <ol class="steps" data-sec="rel-android">
+            <li><div class="step-title"><h4>ストアの掲載情報を入力する</h4></div><p class="path">Play Console → アプリ → 拡大 → メインのストアの掲載情報</p></li>
+            <li><div class="step-title"><h4>「アプリのコンテンツ」をすべて完了する</h4></div><p class="small">5 章 C の申告がすべて「完了」になっているか確認します。</p></li>
+            <li><div class="step-title"><h4>製品版のリリースを作成する</h4></div><p class="path">テストとリリース → 製品版 → 国 / 地域（日本）→ 新しいリリースを作成</p><p class="small">内部テストで確認したビルドを選び、リリースノートを書きます。</p></li>
+            <li><div class="step-title"><h4>審査に送信し、段階的に公開する</h4></div><p class="small">「公開の概要」で審査に送信します。通過後、最初は 10〜20% のユーザーにだけ配る「段階的公開」にすると、問題があったときの影響を抑えられます。</p></li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <!-- 12 -->
+    <section id="devenv">
+      <div class="sec-head"><span class="eyebrow">12</span><h2>開発環境（エンジニア向け）</h2>
+        <div class="meta"><span class="tag eng">エンジニア</span></div></div>
+      <p class="lead">プロダクトオーナーの方は「エンジニアの PC に何が必要か」の参考に。機材の購入やライセンスの手配が必要なものがあります。</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>もの</th><th>用途</th><th>補足</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Mac（Apple シリコン）</strong></td><td>iOS アプリのビルドと動作確認</td><td>iOS 開発には Mac が必須。メモリ 16GB 以上推奨。<span class="tag biz">プロダクトオーナー</span>購入手配</td></tr>
+            <tr><td>テスト用の実機</td><td>アラーム・音声・通知の確認</td><td>iPhone（小さい画面の SE 系を含む）、Android 端末 1〜2 台。<span class="tag biz">プロダクトオーナー</span>購入手配</td></tr>
+            <tr><td>Xcode</td><td>iOS ビルド</td><td>Mac App Store から無料</td></tr>
+            <tr><td>Android Studio</td><td>Android ビルド・エミュレーター</td><td>無料</td></tr>
+            <tr><td>Flutter SDK</td><td>アプリ開発</td><td>チームでバージョンを揃えるため FVM などで固定し、Codemagic の設定とも合わせる</td></tr>
+            <tr><td>Firebase CLI ＋ FlutterFire CLI</td><td>Firebase の設定・Cloud Functions のデプロイ、Flutter への組み込み</td><td>無料</td></tr>
+            <tr><td>Firebase Local Emulator Suite</td><td>手元で Firestore・Authentication・Functions を動かして開発・テスト</td><td>無料。Java の実行環境が必要</td></tr>
+            <tr><td>Node.js</td><td>React（Web）の開発</td><td>バージョンを固定する</td></tr>
+            <tr><td>エディタ・AI ツール</td><td>開発</td><td>VS Code / Cursor / Claude Code など。会社として使うツールとデータの扱いを決めておく</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <h3>リポジトリ構成の例</h3>
+      <div class="card"><pre style="margin:0;font-family:var(--font-mono);font-size:var(--step--1);overflow-x:auto">hanaemi/
+├── apps/
+│   ├── mobile/        # Flutter（iOS / Android）
+│   └── web/           # React（管理画面・LP・規約）
+├── firebase/
+│   ├── functions/          # Cloud Functions（サーバー側の処理）
+│   ├── firestore.rules     # Firestore のセキュリティルール
+│   ├── firestore.indexes.json
+│   ├── storage.rules       # Cloud Storage のセキュリティルール
+│   └── firebase.json
+├── codemagic.yaml     # ビルド・配信の設定
+└── docs/              # 仕様書</pre></div>
+      <h3>エンジニアの最初のタスク</h3>
+      <ol class="steps" data-sec="devenv">
+        <li><div class="step-title"><h4>Flutter のフレーバー（環境の切り替え）を作る</h4></div><p class="small">dev / stg / prod で接続先の Firebase プロジェクト、アプリ名、Bundle ID（例: 末尾に <code>.stg</code>）を切り替えます。stg 版と本番版を同じ端末に同時に入れられるようになります。</p></li>
+        <li><div class="step-title"><h4>Firestore のデータ設計とルールの運用を決める</h4></div><p class="small">コレクションの構成、セキュリティルール、インデックスをファイルで管理し、エミュレーターでテストしてから stg → prod の順に反映します。管理画面から本番のルールを直接書き換えない運用にします。</p></li>
+        <li><div class="step-title"><h4>アラームと音声の技術検証</h4></div><p class="small">iOS の AlarmKit、Android の正確なアラーム、マナーモード時の音声制御を、Flutter からネイティブコードを呼ぶ形で最初に試します。</p></li>
+        <li><div class="step-title"><h4>Codemagic で stg のテスト配信を通す</h4></div><p class="small">中身が空のアプリでもよいので、早めに TestFlight と Google Play 内部テストまで配信できる状態を作ります。</p></li>
+      </ol>
+    </section>
+
+    <!-- 13 -->
+    <section id="ledger">
+      <div class="sec-head"><span class="eyebrow">13</span><h2>アカウント管理表（記入用）</h2>
+        <div class="meta"><span class="tag biz">プロダクトオーナー</span></div></div>
+      <p class="lead">誰が何の権限を持っているかを残しておくと、担当者の交代や退職時に慌てずに済みます。この表をスプレッドシートなどに写して管理してください（パスワードそのものは書かず、パスワード管理ツールの項目名を書きます）。</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>サービス</th><th>オーナーのアカウント</th><th>支払い</th><th>管理者権限を持つ人</th><th>二段階認証の端末</th><th>保管している鍵</th></tr></thead>
+          <tbody>
+            <tr><td>GitHub</td><td>リポジトリのオーナー（プロダクトオーナーの個人アカウント）</td><td>無料（Pro にする場合は月額）</td><td>オーナーのみ（エンジニアはコラボレーター）</td><td></td><td>—</td></tr>
+            <tr><td>Apple Developer / App Store Connect</td><td>共通メール（Account Holder）</td><td>法人カード（年額・自動更新）</td><td></td><td></td><td>API キー（.p8）、APNs キー（.p8）、証明書</td></tr>
+            <tr><td>Google Play Console</td><td>共通メールの Google アカウント</td><td>支払い済み（初回のみ）</td><td></td><td></td><td>サービスアカウント JSON、アップロード鍵（keystore）</td></tr>
+            <tr><td>Firebase / Google Cloud</td><td>共通メールの Google アカウント</td><td>Spark は無料、Blaze は法人カード（請求先アカウント・予算アラート）</td><td></td><td></td><td>—</td></tr>
+                                    <tr><td>ドメイン</td><td></td><td>（年額・自動更新）</td><td></td><td></td><td>—</td></tr>
+                        <tr><td>Codemagic</td><td>リポジトリのオーナーの GitHub アカウント</td><td>法人カード</td><td></td><td></td><td>—（上記の鍵を登録）</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="warn">
+        <strong>更新・期限のあるもの</strong>
+        <ul class="small">
+          <li>Apple Developer Program: 毎年更新。切れるとアプリがストアから消えます</li>
+          <li>Apple の利用規約の更新: Account Holder が同意しないと配信が止まることがあります</li>
+          <li>iOS の配布用証明書: 約 1 年で期限切れ（Codemagic の自動管理なら更新も自動）</li>
+          <li>APNs キー・API キー: 期限はないが、漏えい時はすぐに無効化して作り直す</li>
+          <li>ドメイン: 年額。自動更新を必ず有効に</li>
+          <li>メンバーの退職時: すべてのサービスから招待を外す</li>
+        </ul>
+      </div>
+    </section>
+  </main>
+</div>
+<script>
+(() => {
+  const KEY = "hanaemi-setup-guide-checks";
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch (e) { saved = {}; }
+  const items = [];
+  document.querySelectorAll("ol.steps").forEach((ol) => {
+    const sec = ol.dataset.sec || "x";
+    ol.querySelectorAll(":scope > li").forEach((li, i) => {
+      const id = sec + "-" + i;
+      const title = li.querySelector(".step-title");
+      if (!title) return;
+      const label = document.createElement("label");
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = !!saved[id];
+      label.append(cb, document.createTextNode("完了"));
+      title.append(label);
+      li.classList.toggle("done", cb.checked);
+      cb.addEventListener("change", () => {
+        saved[id] = cb.checked;
+        li.classList.toggle("done", cb.checked);
+        try { localStorage.setItem(KEY, JSON.stringify(saved)); } catch (e) {}
+        update();
+      });
+      items.push(cb);
+    });
+  });
+  const text = document.getElementById("prog-text"), bar = document.getElementById("prog-bar");
+  function update() {
+    const done = items.filter((c) => c.checked).length;
+    text.textContent = done + " / " + items.length + " 完了";
+    bar.style.width = (items.length ? (done / items.length) * 100 : 0) + "%";
+  }
+  update();
+})();
+</script>
+</body>
+</html>
